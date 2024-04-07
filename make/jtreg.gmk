@@ -1,0 +1,381 @@
+#
+# Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+#----------------------------------------------------------------------
+#
+# compile com.sun.javatest.regtest
+
+DEFAULT_DEBUG_FLAGS = -g
+AGENT_DEBUG_FLAGS = $(DEFAULT_DEBUG_FLAGS)
+TOOL_DEBUG_FLAGS = $(DEFAULT_DEBUG_FLAGS)
+JAVA_LANG_DEBUG_FLAGS = $(DEFAULT_DEBUG_FLAGS)
+
+### The following files are required to run agentvm and othervm tests, as far back as JDK 8
+
+JUNIT_CLASSPATH = $(call AS_CLASSPATH,$(JUNIT_JARS))
+TESTNG_CLASSPATH = $(call AS_CLASSPATH,$(TESTNG_JARS))
+
+JAVAFILES.com.sun.javatest.regtest-agentvm := \
+	$(shell $(FIND) $(JAVADIR)/com/sun/javatest/regtest/agent -name \*.java )
+
+$(BUILDDIR)/classes.com.sun.javatest.regtest.agent.ok: \
+		$(JAVAFILES.com.sun.javatest.regtest-agentvm)
+	$(MKDIR) -p $(CLASSDIR)
+	CLASSPATH="$(CLASSDIR)$(PS)$(JAVATEST_JAR)$(PS)$(JUNIT_CLASSPATH)$(PS)$(TESTNG_CLASSPATH)" \
+	    $(REGTEST_AGENT_JAVAC) $(REGTEST_AGENT_JAVAC_OPTIONS) \
+		-d $(CLASSDIR) \
+		-encoding ASCII \
+		$(AGENT_DEBUG_FLAGS) \
+		$(JAVAFILES.com.sun.javatest.regtest-agentvm)
+	echo "classes built at `date`" > $@
+
+### The following files are for the jtreg and jtdiff tools
+
+JAVAFILES.com.sun.javatest.regtest-tools := \
+	$(shell $(FIND) $(JAVADIR)/com/sun/javatest/regtest -name agent -prune -o -name \*.java -print )
+
+$(BUILDDIR)/classes.com.sun.javatest.regtest.ok: \
+		$(JAVAFILES.com.sun.javatest.regtest-tools) \
+		$(BUILDDIR)/classes.com.sun.javatest.regtest.agent.ok
+	CLASSPATH="$(CLASSDIR)$(PS)$(JAVATEST_JAR)$(PS)$(JUNIT_CLASSPATH)$(PS)$(TESTNG_CLASSPATH)" \
+	    $(REGTEST_TOOL_JAVAC) $(REGTEST_TOOL_JAVAC_OPTIONS) \
+		-d $(CLASSDIR) \
+		-encoding ASCII \
+		$(TOOL_DEBUG_FLAGS) \
+		$(JAVAFILES.com.sun.javatest.regtest-tools)
+	echo "classes built at `date`" > $@
+
+TARGETS.com.sun.javatest.regtest += $(BUILDDIR)/classes.com.sun.javatest.regtest.ok
+
+
+JAVAFILES.java.lang := \
+	$(JAVADIR)/java/lang/JTRegModuleHelper.java
+
+# The hardcoded use of --release 9 reflects the introduction of the Java Platform Module System
+$(BUILDDIR)/classes.java.lang.ok: \
+		$(JAVAFILES.java.lang)
+	CLASSPATH= \
+	    $(REGTEST_TOOL_JAVAC) $(REGTEST_TOOL_JAVAC_OPTIONS) --release 9 $(REGTEST_TOOL_PATCH_JAVA_BASE_OPTIONS) \
+		-d $(CLASSDIR) \
+		-encoding ASCII \
+		$(JAVA_LANG_DEBUG_FLAGS) \
+		$(JAVAFILES.java.lang)
+	echo "classes built at `date`" > $@
+
+TARGETS.com.sun.javatest.regtest += $(BUILDDIR)/classes.java.lang.ok
+
+
+#----------------------------------------------------------------------
+#
+# resources required for com.sun.javatest.regtest
+
+RESOURCES.com.sun.javatest.regtest = \
+	$(CLASSDIR)/META-INF/services/java.util.spi.ToolProvider \
+	$(CLASSDIR)/com/sun/javatest/regtest/config/i18n.properties \
+	$(CLASSDIR)/com/sun/javatest/regtest/report/i18n.properties \
+	$(CLASSDIR)/com/sun/javatest/regtest/tool/i18n.properties \
+	$(CLASSDIR)/com/sun/javatest/regtest/tool/jtlogo.png \
+	$(CLASSDIR)/com/sun/javatest/regtest/tool/jars.properties
+
+$(BUILDDIR)/classes/com/sun/javatest/regtest/tool/jars.properties: \
+	$(ASMTOOLS_JAR) \
+	$(TESTNG_JARS) \
+	$(JUNIT_JARS)
+	( \
+	    echo "asmtools=$(notdir $(ASMTOOLS_JAR))" ; \
+	    echo "testng=$(notdir $(TESTNG_JARS))" ; \
+	    echo "junit=$(notdir $(JUNIT_JARS))" \
+	) > $@
+
+TARGETS.com.sun.javatest.regtest += $(RESOURCES.com.sun.javatest.regtest)
+
+#----------------------------------------------------------------------
+#
+# Misc. doc files
+
+JTREG_COPYRIGHT 	= $(JTREG_IMAGEDIR)/COPYRIGHT
+JTREG_LICENSE		= $(JTREG_IMAGEDIR)/LICENSE
+JTREG_README		= $(JTREG_IMAGEDIR)/README
+JTREG_FAQ 		= $(JTREG_IMAGEDIR)/doc/jtreg/faq.html
+JTREG_TAGSPEC 		= $(JTREG_IMAGEDIR)/doc/jtreg/tag-spec.html
+JTREG_USAGE 		= $(JTREG_IMAGEDIR)/doc/jtreg/usage.txt
+
+JTREG_DOCS = \
+	$(JTREG_COPYRIGHT) \
+	$(JTREG_FAQ) \
+	$(JTREG_LICENSE) \
+	$(JTREG_README) \
+	$(JTREG_TAGSPEC) \
+	$(JTREG_USAGE)
+
+$(JTREG_COPYRIGHT): $(TOPDIR)/COPYRIGHT
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) $< $@
+
+$(JTREG_FAQ): FAQ_PANDOC_OPTIONS = --to html5
+
+$(BUILDDIR)/alt-faq.html: FAQ_PANDOC_OPTIONS = --to html4 --ascii
+$(BUILDDIR)/alt-faq.html: FAQ_SED_OPTIONS = -e '/max-width: 36em;/d'
+
+$(JTREG_FAQ) $(BUILDDIR)/alt-faq.html:   $(SRCJTREGDOCDIR)/faq.md \
+		$(SRCJTREGDOCDIR)/faq-local-style.html \
+		$(SRCJTREGDOCDIR)/faq-intro.html
+	$(MKDIR) -p $(@D)
+	$(ECHO) '/<header>/{;:a;N;/<\/header>/!ba;};/<h1 class="title">/d' | tr ';' '\n' > $(BUILDDIR)/fixupheader
+	$(PANDOC) \
+	    --standalone \
+	    --include-in-header $(SRCJTREGDOCDIR)/faq-local-style.html \
+	    --include-before $(SRCJTREGDOCDIR)/faq-intro.html \
+	    --toc \
+	    $(FAQ_PANDOC_OPTIONS) \
+	    --number-sections \
+	    $(SRCJTREGDOCDIR)/faq.md | \
+	$(SED) \
+	    -e 's/^code > span\.\([a-z][a-z] .*\)/code span.\1/' \
+	    -e 's/-section-number">0./-section-number">/' \
+	    -e 's/…/\&hellip;/g' \
+	    -e 's/™/\&trade;/g' \
+	    -f  $(BUILDDIR)/fixupheader \
+	    $(FAQ_SED_OPTIONS) \
+	    > $@
+
+
+$(JTREG_README): $(SRCJTREGDOCDIR)/README
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) $< $@
+
+$(JTREG_TAGSPEC): $(JTREG_IMAGEDIR)/doc/jtreg/%: $(SRCJTREGDOCDIR)/%
+	$(RM) $@
+	$(MKDIR) -p $(@D)
+	$(CP) $^ $@
+
+$(JTREG_USAGE): $(BUILDDIR)/jtreg-usage.txt
+	$(CP) $^ $@
+
+$(JTREG_LICENSE): $(TOPDIR)/LICENSE
+	$(MKDIR) -p $(@D)
+	$(CP) $^ $@
+
+$(BUILDDIR)/jtreg-usage.txt: \
+		$(BUILDDIR)/classes.com.sun.javatest.regtest.ok \
+		$(BUILDDIR)/classes/com/sun/javatest/regtest/tool/i18n.properties \
+		$(BUILDDIR)/classes/com/sun/javatest/regtest/tool/jars.properties
+	$(JDKJAVA) -cp "$(CLASSDIR)$(PS)$(JAVATEST_JAR)" \
+	    -Dprogram=jtreg com.sun.javatest.regtest.Main -help all > $@
+
+TARGETS.ZIP.jtreg += $(JTREG_DOCS)
+
+#----------------------------------------------------------------------
+
+ifdef JAVATEST_SRCDIR
+JAVATEST_SRCFILES= \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/InterviewParameters.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/Parameters.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/Status.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/TestDescription.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/TestResult.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/TestResultTable.java \
+	$(JAVATEST_SRCDIR)/com/sun/javatest/WorkDirectory.java
+endif
+
+$(JTREG_IMAGEDIR)/doc/api/index.html: \
+	    $(JAVAFILES.com.sun.javatest.regtest-tools) \
+	    $(JAVATEST_SRCFILES)
+	$(JDKHOME)/bin/javadoc -d $(@D) \
+                -encoding ASCII \
+		-sourcepath "$(JAVADIR)$(PS)$(JAVATEST_SRCDIR)" \
+		-classpath "$(JAVATEST_JAR)$(PS)$(JUNIT_JAR)$(PS)$(TESTNG_JAR)" \
+		com.sun.javatest.regtest \
+		$(JAVATEST_SRCFILES)
+
+$(JTREG_IMAGEDIR)/doc/devapi/index.html: \
+	    $(JAVAFILES.com.sun.javatest.regtest-tools) \
+	    $(JAVATEST_SRCFILES)
+	$(JDKHOME)/bin/javadoc -d $(@D) \
+                -encoding ASCII \
+		-sourcepath "$(JAVADIR)$(PS)$(JAVATEST_SRCDIR)" \
+		-classpath "$(JAVATEST_JAR)$(PS)$(JUNIT_CLASSPATH)$(PS)$(TESTNG_CLASSPATH)" \
+		-subpackages com.sun.javatest.regtest \
+		-tag "implNote:a:Implementation Note:" \
+		$(JAVATEST_SRCFILES)
+
+
+#----------------------------------------------------------------------
+#
+# create jtreg.jar
+
+PKGS.JAR.jtreg += \
+	com.sun.javatest.regtest \
+	com.sun.javatest.regtest.agent \
+	com.sun.javatest.regtest.config \
+	com.sun.javatest.regtest.exec \
+	com.sun.javatest.regtest.report \
+	com.sun.javatest.regtest.tool \
+	com.sun.javatest.regtest.util \
+	java.lang
+TARGETS.JAR.jtreg += $(TARGETS.com.sun.javatest.regtest)
+
+FILES.JAR.jtreg=$(CLASSDIR)/META-INF/services/java.util.spi.ToolProvider
+
+$(JTREG_IMAGEDIR)/lib/jtreg.jar: JAR_MAINCLASS = com.sun.javatest.regtest.Main
+
+$(JTREG_IMAGEDIR)/lib/jtreg.jar: JAR_CLASSPATH = javatest.jar asmtools.jar
+
+$(JTREG_IMAGEJARDIR)/jtreg.jar: \
+	$(JTREG_IMAGEDIR)/lib/javatest.jar \
+	$(TARGETS.JAR.jtreg)
+
+TARGETS.ZIP.jtreg += $(JTREG_IMAGEJARDIR)/jtreg.jar
+
+#----------------------------------------------------------------------
+
+# Import a file to a given directory, and add the target to the list of
+# dependencies for TARGETS.ZIP.jtreg
+#  1: the file to be imported
+#  2: the target directory
+#
+define IMPORT_FILE
+$(2)/$(notdir $(1)): $(call PosixPath,$(1))
+	$(RM) -f $$@
+	$(MKDIR) -p $$(@D)
+	$(CP) $$< $$@
+
+TARGETS.ZIP.jtreg += $(2)/$(notdir $(1))
+endef
+
+#----------------------------------------------------------------------
+#
+# import JavaTest or JT Harness
+
+TARGETS.com.sun.javatest.regtest += $(RESOURCES.com.sun.javatest.regtest)
+
+$(JTREG_IMAGEDIR)/lib/javatest.jar: $(call PosixPath,$(JAVATEST_JAR))
+	$(RM) -f $@
+	$(MKDIR) -p $(@D)
+	$(CP) $< $@
+
+TARGETS.ZIP.jtreg += $(JTREG_IMAGEJARDIR)/javatest.jar
+
+$(foreach file,$(JTHARNESS_NOTICES),$(eval $(call IMPORT_FILE,$(file),$(JTREG_IMAGEDIR)/legal/jtharness)))
+
+#----------------------------------------------------------------------
+#
+# import JUnit
+
+$(foreach jar,$(JUNIT_JARS),$(eval $(call IMPORT_FILE,$(jar),$(JTREG_IMAGEDIR)/lib)))
+
+$(foreach file,$(JUNIT_NOTICES),$(eval $(call IMPORT_FILE,$(file),$(JTREG_IMAGEDIR)/legal/junit)))
+
+#----------------------------------------------------------------------
+#
+# import TestNG
+
+$(foreach jar,$(TESTNG_JARS),$(eval $(call IMPORT_FILE,$(jar),$(JTREG_IMAGEDIR)/lib)))
+
+$(foreach file,$(TESTNG_NOTICES),$(eval $(call IMPORT_FILE,$(file),$(JTREG_IMAGEDIR)/legal/testng)))
+
+#----------------------------------------------------------------------
+#
+# import AsmTools
+
+$(eval $(call IMPORT_FILE,$(ASMTOOLS_JAR),$(JTREG_IMAGEDIR)/lib))
+
+$(JTREG_IMAGEDIR)/lib/jtreg.jar: $(JTREG_IMAGEDIR)/lib/$(notdir $(ASMTOOLS_JAR))
+
+$(foreach file,$(ASMTOOLS_NOTICES),$(eval $(call IMPORT_FILE,$(file),$(JTREG_IMAGEDIR)/legal/asmtools)))
+
+#----------------------------------------------------------------------
+#
+# convenience aggregate value for tests
+
+ALL_JTREG_JARS = \
+	$(JTREG_IMAGEDIR)/lib/jtreg.jar \
+	$(JTREG_IMAGEDIR)/lib/javatest.jar \
+	$(addprefix $(JTREG_IMAGEDIR)/lib/,$(notdir $(ASMTOOL_JAR))) \
+	$(addprefix $(JTREG_IMAGEDIR)/lib/,$(notdir $(ASMTOOL_JAR))) \
+	$(addprefix $(JTREG_IMAGEDIR)/lib/,$(notdir $(JUNIT_JARS))) \
+	$(addprefix $(JTREG_IMAGEDIR)/lib/,$(notdir $(TESTNG_JARS))) \
+
+#----------------------------------------------------------------------
+#
+# executable scripts
+
+$(JTREG_IMAGEDIR)/bin/jtreg: $(SRCSHAREBINDIR)/jtreg.sh
+	$(MKDIR) -p $(@D)
+	$(RM) $@
+	$(CP) $<  $@
+	$(CHMOD) a+x,a-w $@
+
+TARGETS.ZIP.jtreg += \
+	$(JTREG_IMAGEDIR)/bin/jtreg
+
+#----------------------------------------------------------------------
+#
+# release info
+
+# based on code in OpenJDK make/SourceRevision.gmk
+ID_COMMAND := $(PRINTF) "git:%s%s\n" \
+                 "$$(git log -n1 --format=%H | cut -c1-12)" \
+                 "$$(if test -n "$$(git status --porcelain)"; then printf '+'; fi)"
+
+$(JTREG_IMAGEDIR)/release:
+	echo "JTREG_VERSION=$(BUILD_VERSION) $(BUILD_NUMBER)" > $@
+	echo "BUILD_DATE=`/bin/date +'%B %d, %Y'`" >> $@
+	if [ -r $(TOPDIR)/.git ]; then \
+	    echo "SOURCE=$$($(ID_COMMAND))" >> $@ ; \
+	elif [ -n "$(SRCREV)" -a -r $(SRCREV) ]; then \
+	    echo "SOURCE=\"$$($(CAT) $(SRCREV) | $(SED) -e 's/:/:git:/' -e 's/  *$$//')\"" >> $@ ; \
+	fi
+
+TARGETS.ZIP.jtreg += \
+	$(JTREG_IMAGEDIR)/release
+
+#----------------------------------------------------------------------
+#
+#  create jtreg.zip bundles
+
+JTREG_ZIP = $(IMAGES_DIR)/jtreg.zip
+
+$(JTREG_ZIP): $(TARGETS.ZIP.jtreg)
+	$(RM) $@
+	cd $(IMAGES_DIR); $(ZIP) -rq $@ $(@F:%.zip=%)
+
+JTREG_ZIPFILES = $(JTREG_ZIP)
+
+#----------------------------------------------------------------------
+
+BUILDFILES += $(JTREG_ZIPFILES)
+
+VERBOSEZIPFILES += $(JTREG_ZIPFILES:%.zip=%-$(VERBOSE_ZIP_SUFFIX).zip)
+
+NEWVERBOSEZIPFILES += $(JTREG_ZIPFILES:%.zip=%-$(NEW_VERBOSE_ZIP_SUFFIX).zip)
+
+#JTREG_JAVA_OPTS = -Ddebug.com.sun.javatest.TestResultCache=98
+#JTREG_OPTS = 	$(JTREG_JAVA_OPTS:%=-J%)
+
+TESTS += $(TESTS.jtreg)
+

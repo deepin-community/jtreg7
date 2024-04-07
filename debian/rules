@@ -1,4 +1,45 @@
 #!/usr/bin/make -f
 
+JAVA_HOME = /usr/lib/jvm/default-java
+
+# version string has the form 7.1+N[+ds]-D, the Debian release is not passed into the build
+VERSION      := $(shell dpkg-parsechangelog --show-field Version | awk -F'[+]' '{ print $$1 }')
+BUILD_NUMBER := $(shell dpkg-parsechangelog --show-field Version | awk -F'[+~-]' '{ print $$2 }')
+DATE         := $(shell dpkg-parsechangelog --show-field Date)
+JTREG_HOME   := $(shell readlink -f build/images/jtreg)
+export JTREG_HOME
+
+export HEADLESS=1
+COMMA=,
+
+SPACE = $(EMPTY) $(EMPTY)
+ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+  NJOBS = $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+endif
+
 %:
-	dh $@
+	dh $@ --with javahelper
+
+override_dh_auto_build:
+	echo "=== $(VERSION) - $(BUILD_NUMBER) ==="
+	mkdir -p build/classes/com/sun/javatest/regtest/tool
+	(cd make && make \
+		ASMTOOLS_JAR=/usr/share/java/asmtools.jar \
+		BUILD_DIR=../build \
+		JUNIT_JARS=/usr/share/java/junit-platform-console-standalone.jar \
+		TESTNG_JARS="/usr/share/java/testng.jar /usr/share/java/guice.jar /usr/share/java/jcommander.jar /usr/share/java/slf4j-simple.jar /usr/share/java/slf4j-api.jar" \
+		JAVATEST_JAR=/usr/share/java/javatest.jar \
+		BUILD_DATE='$(DATE)' \
+		BUILD_NUMBER=$(VERSION) \
+		BUILD_VERSION_STRING="$(VERSION)-src+$(BUILD_NUMBER)" \
+		BUILD_MILESTONE=src \
+		JDKHOME=$(JAVA_HOME) \
+		BUILD_NUMBER=$(BUILD_NUMBER) -j$(NJOBS) all)
+	dh_auto_build
+
+	# Generate the manpages
+	JT_HOME=./build/images/jtreg/lib/ help2man --no-discard-stderr --name="Regression Test Harness" --help-option="-help all" ./build/images/jtreg/bin/jtdiff > jtdiff.1
+	JT_HOME=./build/images/jtreg/lib/ help2man --no-discard-stderr --name="Regression Test Harness" --help-option="-help all" ./build/images/jtreg/bin/jtreg > jtreg.1
+
+	# Make jtreg.jar writable so it is not ignored by strip-nondeterminism
+	chmod +w build/images/jtreg/lib/jtreg.jar

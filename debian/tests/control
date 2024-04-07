@@ -1,0 +1,3 @@
+Tests: self-test
+Depends: @, default-jdk, libtestng7-java
+Restrictions: allow-stderr
