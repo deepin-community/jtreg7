@@ -1,0 +1,28 @@
+#!/bin/sh
+
+export JTREG_HOME="/usr/share/jtreg"
+export JAVA_HOME="/usr/lib/jvm/default-java"
+mkdir -p "${AUTOPKGTEST_TMP}/build/classes/com/sun/javatest/regtest/tool"
+
+PARALLEL_TESTS=`nproc --all`
+# be safe for 32bit architectures
+if [ "$PARALLEL_TESTS" -gt 2 ]; then
+    PARALLEL_TESTS=2
+fi
+
+# avoid spurious failures such as
+# applet/Pass.java#id0                  Failed. Execution failed: Applet thread threw exception: java.awt.AWTError: Can't connect to X11 window server using 'autopkgtest:0.0' as the value of the DISPLAY variable.
+# alternative is ensure that X windows manager is running and shutdown it properly
+export HEADLESS="1"
+
+set -x
+
+make -j${PARALLEL_TESTS} -C make \
+    ASMTOOLS_JAR=/usr/share/java/asmtools.jar \
+    BUILD_DIR="${AUTOPKGTEST_TMP}/build" \
+    JUNIT_JARS=/usr/share/java/junit-platform-console-standalone.jar \
+    TESTNG_JARS="/usr/share/java/testng.jar /usr/share/java/guice.jar /usr/share/java/jcommander.jar /usr/share/java/slf4j-simple.jar /usr/share/java/slf4j-api.jar" \
+    JAVATEST_JAR=/usr/share/java/javatest.jar \
+    BUILD_MILESTONE=src \
+    JDKHOME="${JAVA_HOME}" \
+    test

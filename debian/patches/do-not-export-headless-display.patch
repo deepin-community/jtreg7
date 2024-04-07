@@ -1,0 +1,31 @@
+Description: Enforce headless mode for self test
+ JTREG ReportOnly test has a fixed test count that depends on HEADLESS
+ variable. Ensure that both DISPLAY and java.awt.headless
+ properties are set accordingly
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Forwarded: not-needed
+Last-Update: 2023-01-23
+--- a/test/basic/Basic.gmk
++++ b/test/basic/Basic.gmk
+@@ -55,7 +55,13 @@
+
+ #----------------------------------------------------------------------
+
++ifdef HEADLESS
++ENVVARS="DISPLAY="
++TEST_ENV="-Djava.awt.headless=true"
++else
+ ENVVARS="DISPLAY=$${DISPLAY:-`uname -n`:0.0}"
++TEST_ENV="-Djava.awt.headless=false"
++endif
+
+ ifeq ($(OS_NAME), windows)
+   BASIC_TESTS := $(shell cygpath -m $(abspath $(TESTDIR)/share/basic) )
+@@ -89,6 +95,7 @@
+ 		-Djavatest.regtest.allowTrailingBuild=true \
+ 		-Djavatest.regtest.showCmd=true \
+ 		-Djavatest.regtest.debugOptions=true \
++		$(TEST_ENV) \
+ 		Basic \
+ 		    $(BASIC_TESTS) \
+ 		    ../../report \

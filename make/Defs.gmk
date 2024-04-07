@@ -1,0 +1,237 @@
+#
+# Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+# include host-specific defs, if any
+-include Defs-$(shell hostname).gmk
+
+# TOPDIR = .. # now set in Makefile
+ABSTOPDIR = $(shell cd $(TOPDIR); pwd)
+
+# clobber settings from user's environment
+JAVA_HOME=
+CLASSPATH=
+JAVA_COMPILER=
+LD_LIBRARY_PATH=
+
+
+
+#----------------------------------------------------------------------
+#
+# Support for Cygwin and MSYS2 (which may identify as MSYS, MINGW32 or MINGW64 (the default))
+
+SYSTEM_UNAME := $(shell uname)
+
+# Where is unwanted output to be delivered?
+# On Windows, MKS uses the special file "NUL", cygwin uses the customary unix file.
+ifeq ($(SYSTEM_UNAME), Windows_NT)
+DEV_NULL = NUL
+else
+DEV_NULL = /dev/null
+endif
+
+ifneq (,$(findstring CYGWIN,$(SYSTEM_UNAME)))
+USING_CYGWIN = true
+USING_CYGWIN_OR_USING_MSYS = true
+endif
+
+ifneq (,$(findstring MSYS,$(SYSTEM_UNAME))$(findstring MINGW,$(SYSTEM_UNAME)))
+USING_MSYS = true
+USING_CYGWIN_OR_USING_MSYS = true
+endif
+
+ifdef USING_CYGWIN_OR_USING_MSYS
+define FullPath
+$(shell cygpath -a -m $1 2> $(DEV_NULL))
+endef
+define PosixPath
+$(shell cygpath -a -u $1 2> $(DEV_NULL))
+endef
+else
+define FullPath
+$(abspath $1)
+endef
+define PosixPath
+$1
+endef
+endif
+
+ifndef BUILDDIR
+  BUILDDIR = $(TOPDIR)/build
+endif
+override BUILDDIR := $(call FullPath, $(BUILDDIR))
+override JDKHOME := $(call FullPath, $(JDKHOME))
+
+BUILDTESTDIR=$(BUILDDIR)/test
+
+#----------------------------------------------------------------------
+#
+# Parameters to control what to build and test with.
+
+# Notices are optional or may be empty
+# The following are not optional ...
+
+ifndef JDKHOME
+$(error JDKHOME not set)
+endif
+
+ifndef JAVATEST_JAR
+$(error JAVATEST_JAR not set)
+endif
+
+ifndef ASMTOOLS_JAR
+$(error ASMTOOLS_JAR not set)
+endif
+
+ifndef JUNIT_JARS
+$(error JUNIT_JARS not set)
+endif
+
+ifndef TESTNG_JARS
+$(error TESTNG_JARS not set)
+endif
+
+# derived values
+JDKJAVA = $(JDKHOME)/bin/java
+JDKJAVAC = $(JDKHOME)/bin/javac
+JAR = $(JDKHOME)/bin/jar
+
+AGENT_JAVAC_SOURCE_TARGET = --release 8
+TOOL_JAVAC_SOURCE_TARGET = --release 11
+REGTEST_TOOL_PATCH_JAVA_BASE_OPTIONS = --patch-module java.base=$(JAVADIR)
+
+# for files needed to run agentvm and othervm tests (on platforms back to JDK 8)
+REGTEST_AGENT_JAVAC = $(JDKHOME)/bin/javac
+REGTEST_AGENT_JAVAC_OPTIONS = \
+	$(AGENT_JAVAC_SOURCE_TARGET) -Xlint:all,-options,-deprecation -Werror
+
+# for files needed for jtreg tool
+REGTEST_TOOL_JAVAC = $(JDKHOME)/bin/javac
+REGTEST_TOOL_JAVAC_OPTIONS = \
+	$(TOOL_JAVAC_SOURCE_TARGET) -Xlint:all,-options,-deprecation -Werror
+
+
+#----- Unix commands
+
+AWK     = /usr/bin/awk
+CAT 	= /bin/cat
+CHMOD 	= /bin/chmod
+CP 	= /bin/cp
+DIFF 	= /usr/bin/diff
+ECHO	= /bin/echo
+FIND	= /usr/bin/find
+GREP 	:= $(shell if [ -r /bin/grep ]; then echo /bin/grep ; else echo /usr/bin/grep ; fi )
+LN	= /bin/ln
+LS	= /bin/ls
+MKDIR 	= /bin/mkdir
+MV 	= /bin/mv
+PANDOC  := $(shell if [ -r /usr/bin/pandoc ]; then \
+		echo /usr/bin/pandoc ; \
+	elif [ -r /usr/local/bin/pandoc ]; then \
+		echo /usr/local/bin/pandoc ; \
+	elif [ -r /opt/homebrew/bin/tidy ]; then \
+		echo /opt/homebrew/bin/pandoc ; \
+	else \
+		echo /bin/echo "pandoc not available" ; \
+	fi )
+PERL	= /usr/bin/perl
+PRINTF  = /usr/bin/printf
+RM 	= /bin/rm -rf
+SED 	:= $(shell if [ -r /bin/sed ]; then echo /bin/sed ; else echo /usr/bin/sed ; fi )
+SH 	= /bin/sh
+SORT    = /usr/bin/sort
+TEST 	= /usr/bin/test
+ifeq ($(SYSTEM_UNAME), Darwin)
+TIDY 	:= $(shell if [ -r /usr/local/bin/tidy ]; then \
+		echo /usr/local/bin/tidy ; \
+	elif [ -r /opt/homebrew/bin/tidy ]; then \
+		echo /opt/homebrew/bin/tidy ; \
+	else \
+		echo /usr/bin/tidy ; \
+	fi )
+else
+TIDY	= /usr/bin/tidy
+endif
+TOUCH 	= /usr/bin/touch
+UNZIP 	= /usr/bin/unzip
+WC 	= /usr/bin/wc
+ZIP 	= /usr/bin/zip
+
+
+#----------------------------------------------------------------------
+#
+# Identification of parts of the system
+SRCDIR = $(TOPDIR)/src
+JAVADIR = $(SRCDIR)/share/classes
+SRCDOCDIR = $(SRCDIR)/share/doc
+SRCJTDOCDIR = $(SRCDIR)/share/doc/javatest
+SRCJTREGDOCDIR = $(SRCDIR)/share/doc/javatest/regtest
+SRCSHAREBINDIR = $(SRCDIR)/share/bin
+TESTDIR = $(TOPDIR)/test
+
+CLASSDIR = $(BUILDDIR)/classes
+ABSCLASSDIR = $(cd $(CLASSDIR); pwd)
+
+IMAGES_DIR = $(BUILDDIR)/images
+JTREG_IMAGEDIR = $(IMAGES_DIR)/jtreg
+JTREG_IMAGEDOCDIR = $(JTREG_IMAGEDIR)/doc
+JTREG_IMAGEJARDIR = $(JTREG_IMAGEDIR)/lib
+ABS_JTREG_IMAGEJARDIR = $(shell cd $(JTREG_IMAGEJARDIR); pwd)
+
+# source bundle locations
+IMAGESRC_SRCDIR = $(IMAGESRC_TOPDIR)/src/share/classes
+
+#----------------------------------------------------------------------
+#
+# Version tags
+#
+# BUILD_* variables are normally set (overridden) by RE builds
+BUILD_VERSION = 5.2
+BUILD_MILESTONE = dev
+BUILD_NUMBER = b00
+
+# don't eval dates here directly, because that leads to unstable builds
+#BUILD_YEAR:sh = /bin/date +"%Y"
+BUILD_YEAR_CMD = /bin/date '+%Y'
+#BUILD_DOCDATE:sh = /bin/date +"%B %d, %Y"
+BUILD_DOCDATE_CMD = /bin/date  +'%B %d, %Y'
+#BUILD_ZIPDATE:sh = /bin/date '+%d %h %Y'
+BUILD_ZIPDATE_CMD = /bin/date  '+%d %h %Y'
+BUILD_NONFCS_MILESTONE_sh = echo $(BUILD_MILESTONE) | sed -e 's/[fF][cC][sS]//'
+BUILD_NONFCS_MILESTONE = $(BUILD_NONFCS_MILESTONE_sh:sh)
+
+# munge the BUILD values suitable for use in the bundle name
+ZIPSFX_VERSION_sh = echo '$(BUILD_VERSION)' | sed -e 's|\([^0-9][^0-9]*\)|_|g'
+ZIPSFX_MILESTONE_sh = echo '$(BUILD_MILESTONE)'
+ZIPSFX_BUILD_sh = echo '$(BUILD_NUMBER)'
+ZIPSFX_NEWBUILD_sh = echo '$(BUILD_NUMBER)' | sed -e 's|[^[0-9]||g' | xargs printf "%d"
+ZIPSFX_DATE_sh = echo "`$(BUILD_ZIPDATE_CMD)`" | /usr/bin/tr -s '[A-Z] ' '[a-z]_'
+
+VERBOSE_ZIP_SUFFIX = $(shell $(ZIPSFX_VERSION_sh))-$(shell $(ZIPSFX_MILESTONE_sh))-bin-$(shell $(ZIPSFX_BUILD_sh))-$(shell $(ZIPSFX_DATE_sh))
+
+ifdef BUILD_MILESTONE
+NEW_VERBOSE_ZIP_SUFFIX = $(BUILD_VERSION)-$(BUILD_MILESTONE)+$(shell $(ZIPSFX_NEWBUILD_sh))_bin
+else
+NEW_VERBOSE_ZIP_SUFFIX = $(BUILD_VERSION)+$(shell $(ZIPSFX_NEWBUILD_sh))_bin
+endif
