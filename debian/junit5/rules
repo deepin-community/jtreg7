@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=maven --with javahelper
+
+override_dh_auto_build:
+	rsync -Lav ../debian/built-components/ debian/ || true
+	rsync -Lav ../debian/junit5/junit-jupiter-api/build/generated/sources/jte/main junit-jupiter-api/src/main/java
+	dh_auto_build $@

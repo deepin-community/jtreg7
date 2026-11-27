@@ -1,0 +1,17 @@
+Description: Remove comma from jtdiff version string
+ jtdiff version string comma confuses help2man causing a lintian warning and a 
+ corrupted man page.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Forwarded: not-needed
+Last-Update: 2023-11-03
+--- a/src/share/classes/com/sun/javatest/diff/i18n.properties
++++ b/src/share/classes/com/sun/javatest/diff/i18n.properties
+@@ -79,7 +79,7 @@
+ help.output.title.arg=<string>
+ help.output.title.desc=Title to use for the results
+ 
+-help.version.txt={0}, version {1} {2} {3}\nInstalled in {4}\nRunning on platform version {5} from {6}.\nBuilt with {7} on {8}.
++help.version.txt={0} version {1}-{2}+{3}\nInstalled in {4}\nRunning on platform version {5} from {6}.\nBuilt with {7} on {8}.
+ help.version.unknown=(unknown)
+ 
+ html.diffs.count={0} differences

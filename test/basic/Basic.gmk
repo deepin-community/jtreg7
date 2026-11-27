@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ $(BUILDTESTDIR)/Basic.check.ok: \
 		$(BUILDTESTDIR)/i18n.com.sun.javatest.regtest.tool.ok \
 	        $(BASIC.files)
 	$(RM) $(@:%.ok=%/work) $(@:%.ok=%/report)
-	$(MKDIR) -p $(@:%.ok=%/work/scratch) $(@:%.ok=%/report)
+	$(MKDIR) $(@:%.ok=%/work/scratch) $(@:%.ok=%/report)
 	$(JDKJAVA) \
 		-Djavatest.regtest.allowTrailingBuild=true \
 		-jar $(JTREG_IMAGEDIR)/lib/jtreg.jar \
@@ -47,7 +47,11 @@ $(BUILDTESTDIR)/Basic.check.ok: \
 		$(TESTDIR)/share/basic \
 		> $(@:%.ok=%/log) 2>&1|| \
 	    true "non-zero exit code from JavaTest intentionally ignored"
-	$(GREP) -s 'Test results: passed: 156; error: 84' $(@:%.ok=%/log)  > /dev/null
+	if [ ${JAVA_SPECIFICATION_VERSION} -lt 18 ]; then \
+		$(GREP) -s 'Test results: passed: 157; error: 84' $(@:%.ok=%/log)  > /dev/null ; \
+	else \
+		$(GREP) -s 'Test results: passed: 142; error: 84' $(@:%.ok=%/log)  > /dev/null ; \
+	fi
 	echo $@ passed at `date` > $@
 
 INITIAL_TESTS += \
@@ -66,7 +70,7 @@ endif
 $(BUILDTESTDIR)/Basic.classes.ok: \
 		$(ALL_JTREG_JARS) \
 		$(TESTDIR)/basic/Basic.java
-	$(MKDIR) -p $(BUILDTESTDIR)/basic/classes
+	$(MKDIR) $(BUILDTESTDIR)/basic/classes
 	CLASSPATH="$(CLASSDIR)$(PS)$(JAVADIR)$(PS)$(JAVATEST_JAR)" \
 		$(JDKJAVAC) -Xlint -Werror -encoding ASCII -d $(BUILDTESTDIR)/basic/classes $(TESTDIR)/basic/Basic.java
 	echo Basic.java compiled at `date` > $@
@@ -79,7 +83,7 @@ $(BUILDTESTDIR)/Basic.agentvm.ok: \
 		$(BUILDTESTDIR)/i18n.com.sun.javatest.regtest.tool.ok \
 	        $(BASIC.files)
 	$(RM) $(@:%.ok=%/work) $(@:%.ok=%/report)
-	$(MKDIR) -p $(@:%.ok=%/work/scratch) $(@:%.ok=%/report)
+	$(MKDIR) $(@:%.ok=%/work/scratch) $(@:%.ok=%/report)
 	cd $(@:%.ok=%/work/scratch) ; \
 	    $(JDKJAVA) \
 		-cp "../../../basic/classes$(PS)$(JTREG_IMAGEJARDIR)/jtreg.jar" \

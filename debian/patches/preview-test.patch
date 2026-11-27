@@ -1,0 +1,31 @@
+Description: Enable preview feature tests for Java > 11
+ openjdk-11 does not have preview features. Enable preview tests
+ for Java specification version > 11.
+ The patch is not needed upstream, as upstream is on 8.x.
+ jtreg 8.x requires minimum Java version 17.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Forwarded: not-needed
+Last-Update: 2025-08-04
+--- a/test/previewLeaking/TestPreviewLeaking.gmk
++++ b/test/previewLeaking/TestPreviewLeaking.gmk
+@@ -39,4 +39,8 @@
+ 		$(TESTDIR)/previewLeaking/
+ 	echo "test passed at `date`" > $@
+ 
++INCLUDE_PREVIEW_TEST := $(shell if [ ${JAVA_SPECIFICATION_VERSION} -gt 11 ]; then echo 1; else echo 0; fi)
++
++ifeq ($(INCLUDE_PREVIEW_TEST),1)
+ TESTS.jtreg += $(BUILDTESTDIR)/PreviewLeakingTest.ok
++endif
+--- a/test/preview/PreviewTest.gmk
++++ b/test/preview/PreviewTest.gmk
+@@ -54,5 +54,9 @@
+ 	$(GREP) -s 'Test results: failed: 3; error: 1' $(@:%.ok=%/jt.log)  > /dev/null
+ 	echo "test passed at `date`" > $@
+ 
++INCLUDE_PREVIEW_TEST := $(shell if [ ${JAVA_SPECIFICATION_VERSION} -gt 11 ]; then echo 1; else echo 0; fi)
++
++ifeq ($(INCLUDE_PREVIEW_TEST),1)
+ TESTS.jtreg += $(BUILDTESTDIR)/PreviewTest_good.ok
+ TESTS.jtreg += $(BUILDTESTDIR)/PreviewTest_bad.ok
++endif

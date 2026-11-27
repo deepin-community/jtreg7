@@ -1,0 +1,136 @@
+Description: Support building on JDK 21
+ Workaround [this-escape] warnings raised for constructors calling methods that can be
+ overridden in a subclass.
+Author: Guillaume Nodet <gnodet@gmail.com>
+Origin: upstream, https://github.com/jline/jline3/commit/05ee05dbc7b9c5ba9df8358d8a9fc58227101ed0
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1061529
+Forwarded: not-needed
+Applied-Upstream: 05ee05dbc7b9c5ba9df8358d8a9fc58227101ed0
+Last-Update: 2024-01-26
+--- a/jline3/builtins/src/main/java/org/jline/builtins/Completers.java
++++ b/jline3/builtins/src/main/java/org/jline/builtins/Completers.java
+@@ -366,6 +366,7 @@
+             this(Arrays.asList(nodes));
+         }
+ 
++        @SuppressWarnings("this-escape")
+         public TreeCompleter(List<Node> nodes) {
+             StringBuilder sb = new StringBuilder();
+             addRoots(sb, nodes);
+--- a/jline3/builtins/src/main/java/org/jline/builtins/Tmux.java
++++ b/jline3/builtins/src/main/java/org/jline/builtins/Tmux.java
+@@ -188,6 +188,7 @@
+         Discard, SelfInsert, Mouse
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public Tmux(Terminal terminal, PrintStream err, Consumer<Terminal> runner) throws IOException {
+         this.terminal = terminal;
+         this.err = err;
+--- a/jline3/reader/src/main/java/org/jline/reader/impl/LineReaderImpl.java
++++ b/jline3/reader/src/main/java/org/jline/reader/impl/LineReaderImpl.java
+@@ -205,7 +205,7 @@
+ 
+     protected KillRing killRing = new KillRing();
+ 
+-    protected UndoTree<Buffer> undo = new UndoTree<>(this::setBuffer);
++    protected UndoTree<Buffer> undo;
+     protected boolean isUndo;
+ 
+     /*
+@@ -246,6 +246,7 @@
+         this(terminal, appName, null);
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public LineReaderImpl(Terminal terminal, String appName, Map<String, Object> variables) {
+         Objects.requireNonNull(terminal, "terminal can not be null");
+         this.terminal = terminal;
+@@ -260,6 +261,7 @@
+         }
+         this.keyMaps = defaultKeyMaps();
+ 
++        undo = new UndoTree<>(this::setBuffer);
+         builtinWidgets = builtinWidgets();
+         widgets = new HashMap<>(builtinWidgets);
+         bindingReader = new BindingReader(terminal.reader());
+--- a/jline3/reader/src/main/java/org/jline/reader/impl/UndoTree.java
++++ b/jline3/reader/src/main/java/org/jline/reader/impl/UndoTree.java
+@@ -20,6 +20,7 @@
+     private final Node parent;
+     private Node current;
+ 
++    @SuppressWarnings("this-escape")
+     public UndoTree(Consumer<T> s) {
+         state = s;
+         parent = new Node(null);
+--- a/jline3/reader/src/main/java/org/jline/reader/impl/history/DefaultHistory.java
++++ b/jline3/reader/src/main/java/org/jline/reader/impl/history/DefaultHistory.java
+@@ -42,6 +42,7 @@
+     public DefaultHistory() {
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public DefaultHistory(LineReader reader) {
+         attach(reader);
+     }
+--- a/jline3/remote-telnet/src/main/java/org/jline/builtins/telnet/ConnectionData.java
++++ b/jline3/remote-telnet/src/main/java/org/jline/builtins/telnet/ConnectionData.java
+@@ -81,6 +81,7 @@
+      *
+      * @param sock Socket of the inbound connection.
+      */
++    @SuppressWarnings("this-escape")
+     public ConnectionData(Socket sock, ConnectionManager cm) {
+         socket = sock;
+         connectionManager = cm;
+--- a/jline3/remote-telnet/src/main/java/org/jline/builtins/telnet/ConnectionManager.java
++++ b/jline3/remote-telnet/src/main/java/org/jline/builtins/telnet/ConnectionManager.java
+@@ -75,6 +75,7 @@
+     private boolean lineMode = false;
+     private boolean stopping = false;
+ 
++    @SuppressWarnings("this-escape")
+     public ConnectionManager() {
+         threadGroup = new ThreadGroup(toString() + "Connections");
+         closedConnections = new Stack<Connection>();
+--- a/jline3/terminal/src/main/java/org/jline/terminal/Attributes.java
++++ b/jline3/terminal/src/main/java/org/jline/terminal/Attributes.java
+@@ -138,6 +138,7 @@
+     public Attributes() {
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public Attributes(Attributes attr) {
+         copy(attr);
+     }
+--- a/jline3/terminal/src/main/java/org/jline/terminal/Size.java
++++ b/jline3/terminal/src/main/java/org/jline/terminal/Size.java
+@@ -16,6 +16,7 @@
+     public Size() {
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public Size(int columns, int rows) {
+         this();
+         setColumns(columns);
+--- a/jline3/terminal/src/main/java/org/jline/utils/Display.java
++++ b/jline3/terminal/src/main/java/org/jline/utils/Display.java
+@@ -44,6 +44,7 @@
+     protected final boolean delayedWrapAtEol;
+     protected final boolean cursorDownIsNewLine;
+ 
++    @SuppressWarnings("this-escape")
+     public Display(Terminal terminal, boolean fullscreen) {
+         this.terminal = terminal;
+         this.fullScreen = fullscreen;
+--- a/jline3/builtins/src/main/java/org/jline/builtins/Nano.java
++++ b/jline3/builtins/src/main/java/org/jline/builtins/Nano.java
+@@ -940,6 +940,7 @@
+         this(terminal, root.toPath());
+     }
+ 
++    @SuppressWarnings("this-escape")
+     public Nano(Terminal terminal, Path root) {
+         this.terminal = terminal;
+         this.root = root;

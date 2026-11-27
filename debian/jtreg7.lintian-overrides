@@ -1,0 +1,6 @@
+# libhamscrest-java packaging license d/copyright contains
+# symlink. The license information copied verbatim.
+jtreg7 binary: copyright-refers-to-symlink-license usr/share/common-licenses/GPL
+
+# jtreg uses old style GPL license
+jtreg7 binary: old-fsf-address-in-copyright-file

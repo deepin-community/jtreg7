@@ -1,0 +1,21 @@
+# junit5
+
+pom.xml
+junit-bom/pom.xml
+junit-jupiter/pom.xml --java-lib
+junit-jupiter-api/pom.xml --java-lib
+junit-jupiter-engine/pom.xml --java-lib
+junit-jupiter-migrationsupport/pom.xml --java-lib
+junit-jupiter-params/pom.xml --java-lib
+junit-platform-commons/pom.xml --java-lib
+junit-platform-console/pom.xml --java-lib
+junit-platform-console-standalone/pom.xml --java-lib
+junit-platform-engine/pom.xml --java-lib
+junit-platform-launcher/pom.xml --java-lib
+junit-platform-reporting/pom.xml --java-lib
+junit-platform-runner/pom.xml --java-lib
+junit-platform-suite/pom.xml --java-lib
+junit-platform-suite-api/pom.xml --java-lib
+junit-platform-suite-commons/pom.xml --java-lib
+junit-platform-suite-engine/pom.xml --java-lib
+junit-vintage-engine/pom.xml --java-lib

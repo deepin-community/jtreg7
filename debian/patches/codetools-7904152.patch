@@ -1,0 +1,73 @@
+Description: 7904152: jtreg tests fail with openjdk 25
+ The policy tests try to set the Security manager on the command-line
+ causing the Security Manager error.
+ The last supported JDK that allows setting the security manager is 21.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Origin: upstream, https://github.com/openjdk/jtreg/commit/da8892fb26a51fc5d4c3d4e3be74384aa29f64ce
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7904152
+Last-Update: 2026-02-16
+
+--- a/doc/building.md
++++ b/doc/building.md
+@@ -118,7 +118,13 @@
+ ```
+
+ Some tests depend on specific versions of JDK being available, specified
+-by the following variables: `JDK8HOME`, `JDK9HOME`, `JDK14HOME`, `JDK18HOME`.
++by the following variables:
++- `JDK8HOME`
++- `JDK9HOME`
++- `JDK14HOME`
++- `JDK18HOME`
++- `JDK21HOME`
++- `JDK25HOME`
+ A test that requires any of these version of JDK will be skipped if the
+ variable is not set.
+
+--- a/make/Makefile
++++ b/make/Makefile
+@@ -60,6 +60,12 @@
+ ifndef JDK18HOME
+ 	@echo "Warning: JDK18HOME not set; some tests may not have been executed"
+ endif
++ifndef JDK21HOME
++	@echo "Warning: JDK21HOME not set; some tests may not have been executed"
++endif
++ifndef JDK25HOME
++	@echo "Warning: JDK25HOME not set; some tests may not have been executed"
++endif
+ ifdef HEADLESS
+ 	@echo "Warning: HEADLESS is set; some tests may not have been executed"
+ endif
+@@ -110,6 +116,12 @@
+ ifdef JDK18HOME
+ 	@echo "JDK18HOME           = $(JDK18HOME)"
+ endif
++ifdef JDK21HOME
++	@echo "JDK21HOME           = $(JDK21HOME)"
++endif
++ifdef JDK25HOME
++	@echo "JDK25HOME           = $(JDK25HOME)"
++endif
+ 	@echo "JDKHOME             = $(JDKHOME)"
+ 	@echo "JAVATEST_HOME       = $(JAVATEST_HOME)"
+ ifneq ($(JTHARNESS_HOME), $(JAVATEST_HOME))
+--- a/test/policy/PolicyTest.gmk
++++ b/test/policy/PolicyTest.gmk
+@@ -31,7 +31,7 @@
+ 	$(RM) $(@:%.ok=%) ; $(MKDIR) $(@:%.ok=%)
+ 	$(JTREG_IMAGEDIR)/bin/jtreg $(JTREG_OPTS) \
+ 		-w:$(@:%.ok=%)/work -r:$(@:%.ok=%)/report \
+-		-jdk:$(JDKHOME) \
++		-jdk:$(JDK21HOME) \
+ 		-agentvm \
+ 		-retain:all \
+ 		$(TESTDIR)/policy/  \
+@@ -44,5 +44,6 @@
+ 	$(GREP) 'grant.*testng[^ ]*.jar' $(@:%.ok=%)/work/TestNG/simple.policy_new
+ 	echo "test passed at `date`" > $@
+
++ifdef JDK21HOME
+ TESTS.jtreg += $(BUILDTESTDIR)/PolicyTest.ok
+-
++endif

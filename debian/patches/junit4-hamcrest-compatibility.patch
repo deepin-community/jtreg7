@@ -1,0 +1,24 @@
+Description: Fixes the compatibility with the version of Hamcrest in Debian
+Author: Emmanuel Bourg <ebourg@apache.org>
+Forwarded: not-needed
+--- a/junit4/src/main/java/org/junit/matchers/JUnitMatchers.java
++++ b/junit4/src/main/java/org/junit/matchers/JUnitMatchers.java
+@@ -57,7 +57,7 @@
+      */
+     @Deprecated
+     public static <T> Matcher<Iterable<T>> everyItem(final Matcher<T> elementMatcher) {
+-        return CoreMatchers.everyItem(elementMatcher);
++        return CoreMatchers.everyItem((Matcher) elementMatcher);
+     }
+ 
+     /**
+--- a/junit4/src/test/java/org/junit/tests/experimental/theories/runner/WithDataPointMethod.java
++++ b/junit4/src/test/java/org/junit/tests/experimental/theories/runner/WithDataPointMethod.java
+@@ -109,6 +109,6 @@
+     }
+ 
+     private Matcher<Iterable<Failure>> empty() {
+-        return everyItem(nullValue(Failure.class));
++        return everyItem((Matcher) nullValue(Failure.class));
+     }
+ }

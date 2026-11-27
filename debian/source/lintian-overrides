@@ -1,0 +1,16 @@
+# Package does not install component examples
+jtreg7 source: package-does-not-install-examples
+
+# junit5 tests contain prebuilt java jars
+jtreg7 source: source-contains-prebuilt-java-object
+
+# jtreg7 is used in backport, so it uses compat-file
+jtreg7 source: uses-debhelper-compat-file
+jtreg7 source: package-uses-old-debhelper-compat-version
+
+# libhamscrest-java packaging license d/copyright contains
+# symlink. The license information copied verbatim.
+jtreg7: copyright-refers-to-symlink-license
+
+# jtreg uses old style GPL license
+jtreg7 source: old-fsf-address-in-copyright-file

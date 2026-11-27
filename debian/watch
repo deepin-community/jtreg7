@@ -1,7 +1,39 @@
 version=4
-opts=\
-compression=gzip,\
-repack,\
-repacksuffix=~us1,\
-dversionmangle=s/\~us\d*$// \
-https://github.com/openjdk/jtreg/tags .*/jtreg-([\d\.]+(?:\+[0-9]+)?).tar.gz
+opts="compression=gzip,repack,repacksuffix=+ds2,dversionmangle=s/\+(debian|dfsg|ds|deb)(\.?\d+)?$//" \
+https://github.com/openjdk/jtreg/tags .*/jtreg-(7.[\d\.]+(?:\+[0-9]+)?)\.tar\.gz
+
+opts="compression=gzip,component=jansi1,repack" \
+https://github.com/fusesource/jansi/tags?after=jansi-2.1.0 .*/jansi-project-(1.18)\.tar\.gz 1.18
+
+opts="compression=gzip,component=jline3,repack" \
+https://github.com/jline/jline3/tags?after=jline-parent-3.5.2 .*/.*-(3.3.1)\.tar\.gz 3.3.1
+
+opts="compression=gzip,component=junit4,repack" \
+  https://github.com/junit-team/junit4/tags .*/r?(4.13.2)\.tar\.gz 4.13.2
+
+opts="compression=gzip,component=junit5,repack" \
+https://github.com/junit-team/junit5/tags?after=r5.12.2 .*/r(5.11.4)\.tar\.gz 5.11.4
+
+opts="compression=gzip,component=libhamcrest-java,repack" \
+https://github.com/hamcrest/JavaHamcrest/tags .*/(?:hamcrest-java-|v)(2.2)\.tar\.gz 2.2
+
+opts="compression=gzip,component=opentest4j-reporting,repack" \
+https://github.com/ota4j-team/open-test-reporting/tags .*/r(0.1.0-M2)\.tar\.gz 0.1.0-M2
+
+opts="compression=gzip,component=picocli,repack" \
+https://github.com/remkop/picocli/tags (?:.*?/)?v?(4.6.2)\.tar\.gz 4.6.2
+
+opts="compression=gzip,component=testng,repack" \
+https://github.com/cbeust/testng/tags?after=7.8.0-rc2 .*/(7.5.1)\.tar\.gz 7.5.1
+
+opts="compression=gzip,component=univocity-parsers,repack" \
+https://github.com/univocity/univocity-parsers/tags .*/(?:.*?)(2.9.1)\.tar\.gz 2.9.1
+
+opts="compression=gzip,component=hawt-jni,repack" \
+https://github.com/fusesource/hawtjni/tags .*/hawtjni-project-(1.18).tar.gz 1.18
+
+opts="compression=gzip,component=opentest4j,repack" \
+https://github.com/ota4j-team/opentest4j/tags .*/r(1.2.0)\.tar\.gz 1.2.0
+
+opts="compression=gzip,component=apiguardian,repack" \
+https://github.com/apiguardian-team/apiguardian/tags .*/r(1.1.2)\.tar\.gz 1.1.2

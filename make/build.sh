@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@
 # MAVEN_REPO_URL_BASE (e.g. "https://repo1.maven.org/maven2")
 #     The base URL for the maven central repository.
 #
-# CODE_TOOLS_URL_BASE (e.g. "https://git.openjdk.java.net")
+# CODE_TOOLS_URL_BASE (e.g. "https://git.openjdk.org")
 #     The base URL for the code tools source repositories.
 #
 # ANT_ARCHIVE_URL_BASE (e.g. "https://archive.apache.org/dist/ant/binaries")
@@ -75,14 +75,14 @@
 # WGET
 #     The wget-like executable to use when downloading files.
 #
-# WGET_OPTS (e.g. "-v")
+# WGET_OPTIONS (e.g. "-v")
 #     Additional arguments to pass to WGET when downloading files.
 #
 # CURL (e.g. "/path/to/my/wget")
 #     The curl-like executable to use when downloading files.
 #     Note: If available, wget will be preferred.
 #
-# CURL_OPTS (e.g. "-v")
+# CURL_OPTIONS (e.g. "-v")
 #     Additional arguments to pass to CURL when downloading files.
 #
 # SKIP_DOWNLOAD
@@ -395,13 +395,14 @@ sanity_check_java_home() {
         error "JDK 11 or newer is required to build jtreg"
         exit 1
     fi
+    JAVA_SPECIFICATION_VERSION=${vnum}
 }
 
 checkJavaOSVersion() {
   # This checks that the value in the Java "os.version" system property
   # is as expected.  While it is OK to *build* jtreg with a JDK with this bug,
   # some of the `jtreg` self-tests will fail: notably, test/problemList.
-  # See https://bugs.openjdk.java.net/browse/JDK-8253702
+  # See https://bugs.openjdk.org/browse/JDK-8253702
   case `uname` in
     Darwin )
       OS_VERSION=`defaults read loginwindow SystemVersionStampAsString`
@@ -764,13 +765,23 @@ if [ -n "${SKIP_MAKE:-}" ]; then
     exit
 fi
 
+MAKE=$(which make)
+setup_make() {
+    case `uname` in
+      FreeBSD )
+          MAKE=/usr/local/bin/gmake ;;
+    esac
+}
+setup_make
+check_file "${MAKE}"
+
 # save make command for possible later reuse, bypassing this script
 mkdir -p ${BUILD_DIR}
 cat > ${BUILD_DIR}/make.sh << EOF
 #!/bin/sh
 
 cd "${ROOT}/make"
-make ASMTOOLS_JAR="${ASMTOOLS_JAR}"                           \\
+${MAKE} ASMTOOLS_JAR="${ASMTOOLS_JAR}"                           \\
      ASMTOOLS_NOTICES="${ASMTOOLS_NOTICES}"                   \\
      BUILDDIR="${BUILD_DIR}"                                  \\
      BUILD_MILESTONE="${JTREG_BUILD_MILESTONE}"               \\
@@ -778,13 +789,16 @@ make ASMTOOLS_JAR="${ASMTOOLS_JAR}"                           \\
      BUILD_VERSION="${JTREG_VERSION}"                         \\
      BUILD_VERSION_STRING="${JTREG_VERSION_STRING}"           \\
      JAVATEST_JAR="$(mixed_path "${JTHARNESS_JAVATEST_JAR}")" \\
+     JAVA_SPECIFICATION_VERSION="${JAVA_SPECIFICATION_VERSION}" \\
      JDKHOME="$(mixed_path ${JAVA_HOME})"                     \\
      JTHARNESS_NOTICES="${JTHARNESS_NOTICES}"                 \\
+     JTREG_HOME=""                                            \\
+     JT_HOME=""                                               \\
      JUNIT_JARS="${JUNIT_JARS}"                               \\
      JUNIT_NOTICES="${JUNIT_NOTICES}"                         \\
      TESTNG_JARS="${TESTNG_JARS}"                             \\
      TESTNG_NOTICES="${TESTNG_NOTICES}"                       \\
-   ${MAKE_ARGS:-}
+   "\$@"
 EOF
 
-sh ${BUILD_DIR}/make.sh
+sh ${BUILD_DIR}/make.sh ${MAKE_ARGS:-}

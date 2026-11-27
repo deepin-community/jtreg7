@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=gradle --with maven-repo-helper
+
+override_dh_auto_clean:
+	dh_auto_clean
+	# Remove the build.gradle file we created during configure
+	rm -f build.gradle settings.gradle
+
+override_dh_auto_configure:
+	# Until the Debian Gradle toolchain has Kotlin support,
+	# copy the (patched) build.gradle.kts to build.gradle
+	cp build.gradle.kts build.gradle
+	cp settings.gradle.kts settings.gradle
+	dh_auto_configure

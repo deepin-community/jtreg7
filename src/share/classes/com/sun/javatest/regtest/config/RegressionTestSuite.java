@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ import com.sun.javatest.util.I18NResourceBundle;
 import com.sun.javatest.regtest.tool.RegressionContextManager;
 
 
-public class RegressionTestSuite extends TestSuite
+public final class RegressionTestSuite extends TestSuite
 {
     static Map<File, SoftReference<RegressionTestSuite>> cache;
 
@@ -88,6 +88,9 @@ public class RegressionTestSuite extends TestSuite
         return map;
     }
 
+    public TestProperties getTestProperties() {
+        return properties;
+    }
 
     @Override
     public String getName() {
@@ -121,7 +124,7 @@ public class RegressionTestSuite extends TestSuite
     public Script createScript(TestDescription td, String[] exclTestCases, TestEnvironment scriptEnv,
             WorkDirectory workDir,
             BackupPolicy backupPolicy) throws Fault {
-        Script s = new RegressionScript();
+        Script s = new RegressionScript(properties);
 
         // generic script init
         s.initTestDescription(td);
@@ -215,7 +218,11 @@ public class RegressionTestSuite extends TestSuite
         return properties.useOtherVM(td.getFile());
     }
 
-    public boolean needsExclusiveAccess(TestDescription td) throws TestSuite.Fault {
+    /**
+     * {@return true if the test is configured to run exclusively, false otherwise}
+     * @param td the test description
+     */
+    public boolean needsExclusiveAccess(TestDescription td) {
         return properties.needsExclusiveAccess(td.getFile());
     }
 

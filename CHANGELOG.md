@@ -1,6 +1,72 @@
-## [Unreleased](https://git.openjdk.org/jtreg/compare/jtreg-7.3.1+1...master)
+## [Unreleased](https://git.openjdk.org/jtreg/compare/jtreg-7.5.2+1...master)
 
 _nothing noteworthy, yet_
+
+## [7.5.2](https://git.openjdk.org/jtreg/compare/jtreg-7.5.1+1...jtreg-7.5.2+1)
+
+* Support `${test.main.class}` for Java source files in smart arguments [CODETOOLS-7903981](https://bugs.openjdk.org/browse/CODETOOLS-7903981)
+
+* Make default timeout seconds configurable [CODETOOLS-7903961](https://bugs.openjdk.org/browse/CODETOOLS-7903961)
+
+* Restore propagation of preview flag into library code [CODETOOLS-7903971](https://bugs.openjdk.org/browse/CODETOOLS-7903971)
+
+* Add support for `.jasm` and `.jcod` file in patched modules [CODETOOLS-7903955](https://bugs.openjdk.org/browse/CODETOOLS-7903955)
+
+* Use scratch directory for JUnit's `@TempDir` annotation by default [CODETOOLS-7903953](https://bugs.openjdk.org/browse/CODETOOLS-7903953)
+
+
+## [7.5.1](https://git.openjdk.org/jtreg/compare/jtreg-7.5+1...jtreg-7.5.1+1)
+
+* Support running individual parameterized tests and @Nested test classes [CODETOOLS-7903930](https://bugs.openjdk.org/browse/CODETOOLS-7903930)
+
+* Remove problematic implementation for `LIBRARY.properties` support [CODETOOLS-7903940](https://bugs.openjdk.org/browse/CODETOOLS-7903940)
+
+* Add `test.thread.factory` property to filter tests based on test thread factory value [CODETOOLS-7903931](https://bugs.openjdk.org/browse/CODETOOLS-7903931)
+
+* Fix and improve `--verify-exclude` feature
+  [CODETOOLS-7903883](https://bugs.openjdk.org/browse/CODETOOLS-7903883)
+  [CODETOOLS-7903935](https://bugs.openjdk.org/browse/CODETOOLS-7903935)
+
+## [7.5](https://git.openjdk.org/jtreg/compare/jtreg-7.4+1...jtreg-7.5+1)
+
+* Restore `jtdiff` tool [CODETOOLS-7903760](https://bugs.openjdk.org/browse/CODETOOLS-7903760)
+
+* Add support for `LIBRARY.properties` file in the directory specified in the `@library` tag  [CODETOOLS-7903775](https://bugs.openjdk.org/browse/CODETOOLS-7903775)
+
+* The verbose option given at the command-line is now propagated to test agents, including the JUnit test runner.
+  [CODETOOLS-7903443](https://bugs.openjdk.org/browse/CODETOOLS-7903443)
+  [CODETOOLS-7903745](https://bugs.openjdk.org/browse/CODETOOLS-7903745)
+
+* Report test duration information in JUnit and TestNG-based tests
+  [CODETOOLS-7903752](https://bugs.openjdk.org/browse/CODETOOLS-7903752)
+  [CODETOOLS-7903753](https://bugs.openjdk.org/browse/CODETOOLS-7903753)
+
+* Improve message when test times out in Agent VM mode [CODETOOLS-7902346](https://bugs.openjdk.org/browse/CODETOOLS-7902346)
+
+* Log time spent waiting to acquire exclusive access lock [CODETOOLS-7903188](https://bugs.openjdk.org/browse/CODETOOLS-7903188)
+
+* Speed-up error reporting on hosts with slow hostname lookups [CODETOOLS-7903746](https://bugs.openjdk.org/browse/CODETOOLS-7903746)
+
+* Updated jtreg to bundle JUnit 5.11.0 [CODETOOLS-7903821](https://bugs.openjdk.org/browse/CODETOOLS-7903821)
+
+## [7.4](https://git.openjdk.org/jtreg/compare/jtreg-7.3.1+1...jtreg-7.4+1)
+
+* Remove support for `jtdiff` [CODETOOLS-7903622](https://bugs.openjdk.org/browse/CODETOOLS-7903622)
+
+* jtreg now verifies ProblemList files [CODETOOLS-7903659](https://bugs.openjdk.org/browse/CODETOOLS-7903659)
+
+* jtreg no longer ignores VM exit code when test process reports status with "STATUS: " line [CODETOOLS-7903621](https://bugs.openjdk.org/browse/CODETOOLS-7903621)
+
+* Use SOURCE_BUILD_EPOCH to support reproducible builds
+  [CODETOOLS-7903539](https://bugs.openjdk.org/browse/CODETOOLS-7903539)
+
+* Updated jtreg to bundle JUnit 5.10.2 [CODETOOLS-7903578](https://bugs.openjdk.org/browse/CODETOOLS-7903578)
+
+* jtreg, when communicating with the AgentServer in agentvm mode, will now bind to loopback address.
+  [CODETOOLS-7903686](https://bugs.openjdk.org/browse/CODETOOLS-7903686)
+
+* jtreg, in certain cases, would incorrectly report a test as PASSED when the test process would exit with a non-zero exit code.
+  [CODETOOLS-7903621](https://bugs.openjdk.org/browse/CODETOOLS-7903621)
 
 ## [7.3.1](https://git.openjdk.org/jtreg/compare/jtreg-7.3+1...jtreg-7.3.1+1)
 
@@ -10,7 +76,7 @@ _nothing noteworthy, yet_
 ## [7.3](https://git.openjdk.org/jtreg/compare/jtreg-7.2+1...jtreg-7.3+1)
 
 * Updated set of default environment variables set for tests on Unix-like platforms.
-  * Includes `DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, and `XDG-*` 
+  * Includes `DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, and `XDG-*`
     [CODETOOLS-7903400](https://bugs.openjdk.org/browse/CODETOOLS-7903400)
 
 * Updated external dependencies.
@@ -21,7 +87,7 @@ _nothing noteworthy, yet_
   * AgentServer log() does not flush [CODETOOLS-7903470](https://bugs.openjdk.org/browse/CODETOOLS-7903470)
   * System.out and System.err messages are missing in jtr file when a test times out in agentvm mode [CODETOOLS-7903441](https://bugs.openjdk.org/browse/CODETOOLS-7903441)
   * Timeout refired %s times message confusing [CODETOOLS-7902485](https://bugs.openjdk.org/browse/CODETOOLS-7902485)
- 
+
 * Fixed race-condition when running tests with a multi-module setup
   * [CODETOOLS-7903507](https://bugs.openjdk.org/browse/CODETOOLS-7903507)
 
@@ -196,7 +262,7 @@ _nothing noteworthy, yet_
 * Support `@enablePreview`.
   * [CODETOOLS-7902654](https://bugs.openjdk.org/browse/CODETOOLS-7902654)
 
-* Use https://git.openjdk.java.net for CODE_TOOLS_URL.
+* Use https://git.openjdk.org for CODE_TOOLS_URL.
   * [CODETOOLS-7902637](https://bugs.openjdk.org/browse/CODETOOLS-7902637)
 
 * Ignore specified lines in `@compile/fail/ref=<file>`.

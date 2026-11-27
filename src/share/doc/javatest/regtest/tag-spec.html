@@ -1,6 +1,6 @@
 <!DOCTYPE HTML>
 <!--
- Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2006, 2025, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -373,6 +373,9 @@ If the tag is not present and no default value has been configured,
 a value of <code>false</code> will be assumed and no additional
 compile-time and run-time options will be provided.
 
+<p>If a test uses any libraries that use preview features,
+the test will be assumed to also use preview features.
+
 <p>There is no requirement to use <code>@enablePreview</code>.
 A test can still explicitly provide the necessary options instead.
 
@@ -605,6 +608,12 @@ considered to be finished when the main method returns; if a test involves
 multiple threads, some synchronization may be necessary to ensure that the
 other threads finish their work before the thread running the main method
 returns.
+
+<p>Sometimes, after the main method has been invoked, the code may determine
+that it cannot execute the test as required, and as such, the test should not
+be considered to have either passed or failed. In this situation, the test may
+throw an exception named `jtreg.SkippedException`, optionally providing
+a detail string to indicate why the test has been skipped.
 
 <p>The named <var>&lt;class&gt;</var> will be compiled on demand, just as though an "<code>@run</code> build
 <var>&lt;class&gt;</var>" action had been inserted before this action.  If this action requires
@@ -881,7 +890,7 @@ of a test-source tree must therefore be identified by placing a file named
 TEST.ROOT in the root directory.  Exactly one such file must exist in every
 test-source tree.
 
-
+<h3 id="TEST_ROOT_PROPERTIES">TEST.ROOT and TEST.properties</h3>
 
 <p>The <span id="TEST_ROOT">TEST.ROOT</span> file contains test-suite configuration
 information. It is in the standard Java property-file format as described in the
@@ -1228,7 +1237,8 @@ for information on how to extend the set of supported names for a particular tes
 <p>The system properties in the following table will be set
 while executing any class specified in an action tag;
 the environment variables will be set while executing a shell
-action tag.
+action tag. Recently added values may not be available
+in environment variables.
 
 <table>
 <caption>Test-specific system properties and environment variables</caption>
@@ -1238,6 +1248,22 @@ action tag.
 <td><code>test.file</code>
 <td><code>TESTFILE</code>
 <td>The defining file of the test
+
+<tr>
+<td><code>test.main.class</code>
+<td><i>Not Available</i>
+<td>The computed name of the main entry-point of the current Java source file.
+It is based on the simple <code>test.file</code> name without the <code>.java</code>
+extension; prepended with an optional package name parsed from the source file.
+Therefore, non-Java files aren't supported nor inner classes are detected.
+It can be used in action tags, for example:<code>@run main ${test.main.class}</code>
+
+<tr>
+<td><code>test.name</code>
+<td><i>Not Available</i>
+<td>The name of the test, as a relative URL formed from the defining file
+of the test and any corresponding id if the file contains multiple separate
+test descriptions.
 
 <tr>
 <td><code>test.src</code>
@@ -1314,6 +1340,17 @@ will be unset or empty, if the version of JDK used to run the tests does not
 support modules.
 
 <tr>
+<td><code>test.module.path</code>
+<td><i>Not Available</i>
+<td>The path for any library modules used by the test.
+
+<tr>
+<td><code>test.patch.path</code>
+<td><i>Not Available</i>
+<td>The path for tests that are written as a patch for
+a system module.
+
+<tr>
 <td><code>test.root</code>
 <td><code>TESTROOT</code>
 <td>The root directory of the test suite
@@ -1325,6 +1362,11 @@ support modules.
 <td>Set (to <code>true</code>code>) if the test is using "preview features"
 as indicated by <code>@enablePreview</code> in the test description
 or an <code>enablePreview</code> entry in a TEST.properties file.
+
+<tr>
+<td><code>test.verbose</code>
+<td><i>Not Available</i>
+<td>The cumulative value of any command-line "verbose" options.
 
 <tr>
 <td><code>test.query</code>

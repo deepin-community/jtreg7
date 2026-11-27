@@ -1,0 +1,75 @@
+Description: TestNativePath: use different work directories
+ Both agentvm and othervm targets in TestNativePath use the same work path
+ $(BUILDTESTDIR)/nativepath.othervm/work.
+ This causes intermittent test failures when the tests are run in parallel.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Origin: upstream, https://github.com/openjdk/jtreg/pull/298
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7904106
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1115694
+Last-Update: 2025-10-28
+
+--- a/test/nativepath/TestNativePath.gmk
++++ b/test/nativepath/TestNativePath.gmk
+@@ -38,16 +38,16 @@
+ 		-jdk:$(JDKHOME) \
+ 		-nativepath:$(NATIVEPATH) \
+ 		-vmoption:-Dcorrect.nativepath=$(NATIVEPATH) \
+-		-w:$(BUILDTESTDIR)/nativepath.othervm/work \
+-		-r:$(BUILDTESTDIR)/nativepath.othervm/report \
++		-w:$(@:%.ok=%nativepath.othervm)/work \
++		-r:$(@:%.ok=%nativepath.othervm)/report \
+ 		-verbose:fail \
+ 		$(@:$(BUILDTESTDIR)/TestNativePath.%.ok=-%) \
+ 		$(TESTDIR)/nativepath/NativesOK.java
+ 
+ 	$(JTREG_IMAGEDIR)/bin/jtreg $(JTREG_OPTS) \
+ 		-jdk:$(JDKHOME) \
+-		-w:$(BUILDTESTDIR)/nativepath.othervm2/work \
+-		-r:$(BUILDTESTDIR)/nativepath.othervm2/report \
++		-w:$(@:%.ok=%nativepath.othervm2)/work \
++		-r:$(@:%.ok=%nativepath.othervm2)/report \
+ 		-verbose:fail \
+ 		$(@:$(BUILDTESTDIR)/TestNativePath.%.ok=-%) \
+ 		$(TESTDIR)/nativepath/NativesEmpty.java
+@@ -82,8 +82,8 @@
+         # should yield an error
+ 	$(JTREG_IMAGEDIR)/bin/jtreg $(JTREG_OPTS) \
+ 		-jdk:$(JDKHOME) \
+-		-w:$(BUILDTESTDIR)/nativepath.othervm2/work \
+-		-r:$(BUILDTESTDIR)/nativepath.othervm2/report \
++		-w:$(@:%.ok=%nativepath.othervm2)/work \
++		-r:$(@:%.ok=%nativepath.othervm2)/report \
+ 		-verbose:fail \
+ 		$(TESTDIR)/nativepath/NativesOK.java \
+ 		2>&1 | grep -q "Use -nativepath to specify the location of native code"
+@@ -91,8 +91,8 @@
+         # Exclude all tests with native code
+ 	$(JTREG_IMAGEDIR)/bin/jtreg $(JTREG_OPTS) \
+ 		-jdk:$(JDKHOME) \
+-		-w:$(BUILDTESTDIR)/nativepath.othervm2/work \
+-		-r:$(BUILDTESTDIR)/nativepath.othervm2/report \
++		-w:$(@:%.ok=%nativepath.othervm2)/work \
++		-r:$(@:%.ok=%nativepath.othervm2)/report \
+                 -k:!native \
+ 		-verbose:fail \
+ 		$(TESTDIR)/nativepath/NativesOK.java \
+@@ -103,15 +103,15 @@
+ 		-jdk:$(JDKHOME) \
+ 		-nativepath:$(NATIVEPATH) \
+ 		-e:CORRECTNATIVEPATH=$(NATIVEPATH) \
+-		-w:$(BUILDTESTDIR)/nativepath.shell/work \
+-		-r:$(BUILDTESTDIR)/nativepath.shell/report \
++		-w:$(@:%.ok=%nativepath.shell)/work \
++		-r:$(@:%.ok=%nativepath.shell)/report \
+ 		-verbose:fail \
+ 		$(TESTDIR)/nativepath/NativesOKShell.sh
+ 
+ 	$(JTREG_IMAGEDIR)/bin/jtreg $(JTREG_OPTS) \
+ 		-jdk:$(JDKHOME) \
+-		-w:$(BUILDTESTDIR)/nativepath.shell/work \
+-		-r:$(BUILDTESTDIR)/nativepath.shell/report \
++		-w:$(@:%.ok=%nativepath.shell)/work \
++		-r:$(@:%.ok=%nativepath.shell)/report \
+ 		-verbose:fail \
+ 		$(TESTDIR)/nativepath/NativesEmptyShell.sh
+ 

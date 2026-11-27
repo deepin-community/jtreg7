@@ -1,0 +1,35 @@
+Description: intermittent test failure in TimeoutDefaultSecondsWaiter
+ victim.interrupt() is not needed if the process exits successfully
+ after the kill signal. This PR only calls interrupt() if the process
+ fails to exit or the wait is interrupted for some reason.
+ This allows TimeoutDefaultSecondsWaiter tests to pass.
+ Alternative: update assertion in TimeoutDefaultSecondsWaiter test.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Origin: upstream, https://github.com/openjdk/jtreg/pull/296
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7904104
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1115694
+Last-Update: 2025-10-28
+
+--- a/src/share/classes/com/sun/javatest/regtest/exec/ProcessCommand.java
++++ b/src/share/classes/com/sun/javatest/regtest/exec/ProcessCommand.java
+@@ -329,9 +329,17 @@ public void run() {
+
+                 timeoutHandlerDone.countDown();
+
+-                // JDK 1.8 introduces a Process.waitFor(timeout) method which could
+-                // be used here. We need run on 1.5 so using interrupt() instead.
+-                victim.interrupt();
++                // unlock the main thread if the process fails
++                // to exit
++                try {
++                    if (!process.waitFor(timeout, TimeUnit.SECONDS)) {
++                        victim.interrupt();
++                    }
++                }
++                catch (InterruptedException e) {
++                    log.println("Interrupted exception: " + e);
++                    victim.interrupt();
++                }
+             }
+         };
+         timeoutHandlerThread.setName("Timeout Handler for " + cmd.get(0));

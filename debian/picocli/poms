@@ -1,0 +1,3 @@
+build/debian/picocli.pom --artifact=build/libs/picocli*.jar --java-lib
+picocli-codegen/build/debian/picocli-codegen.pom --artifact=picocli-shell-jline2/build/libs/picocli*.jar --java-lib
+picocli-shell-jline2/build/debian/picocli-shell-jline2.pom --artifact=picocli-shell-jline2/build/libs/picocli*.jar --java-lib
