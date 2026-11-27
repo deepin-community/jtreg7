@@ -4,6 +4,12 @@ export JTREG_HOME="/usr/share/jtreg"
 export JAVA_HOME="/usr/lib/jvm/default-java"
 mkdir -p "${AUTOPKGTEST_TMP}/build/classes/com/sun/javatest/regtest/tool"
 
+JAVA_VERSION=`${JAVA_HOME}/bin/java -version 2>&1`
+JAVA_SPECIFICATION_VERSION=`echo "${JAVA_VERSION}" | \
+    grep -e ^java -e ^openjdk | \
+    head -n 1 | \
+    sed -e 's/^[^0-9]*\(1\.\)*\([1-9][0-9]*\).*/\2/'`
+
 PARALLEL_TESTS=`nproc --all`
 # be safe for 32bit architectures
 if [ "$PARALLEL_TESTS" -gt 2 ]; then
@@ -18,11 +24,12 @@ export HEADLESS="1"
 set -x
 
 make -j${PARALLEL_TESTS} -C make \
-    ASMTOOLS_JAR=/usr/share/java/asmtools.jar \
+    ASMTOOLS_JAR=${JTREG_HOME}/lib/asmtools.jar \
     BUILD_DIR="${AUTOPKGTEST_TMP}/build" \
-    JUNIT_JARS=/usr/share/java/junit-platform-console-standalone.jar \
-    TESTNG_JARS="/usr/share/java/testng.jar /usr/share/java/guice.jar /usr/share/java/jcommander.jar /usr/share/java/slf4j-simple.jar /usr/share/java/slf4j-api.jar" \
-    JAVATEST_JAR=/usr/share/java/javatest.jar \
+    JUNIT_JARS=${JTREG_HOME}/lib/junit-platform-console-standalone.jar \
+    TESTNG_JARS="${JTREG_HOME}/lib/testng.jar ${JTREG_HOME}/lib/guice.jar ${JTREG_HOME}/lib/jcommander.jar ${JTREG_HOME}/lib/slf4j-simple.jar ${JTREG_HOME}/lib/slf4j-api.jar" \
+    JAVATEST_JAR=${JTREG_HOME}/lib/javatest.jar \
     BUILD_MILESTONE=src \
     JDKHOME="${JAVA_HOME}" \
+    JAVA_SPECIFICATION_VERSION=${JAVA_SPECIFICATION_VERSION} \
     test

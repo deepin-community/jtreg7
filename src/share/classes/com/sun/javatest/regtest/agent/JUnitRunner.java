@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,15 @@
 
 package com.sun.javatest.regtest.agent;
 
+import org.junit.jupiter.api.extension.AnnotatedElementContext;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.io.CleanupMode;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.io.TempDirFactory;
+import org.junit.platform.engine.DiscoverySelector;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -44,7 +51,13 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -56,6 +69,8 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
     private static final String JUNIT_NO_DRIVER = "No JUnit driver -- install JUnit JAR file(s) next to jtreg.jar";
     // this is a temporary flag while transitioning from JUnit 4 to 5
     private static final boolean JUNIT_RUN_WITH_JUNIT_4 = Flags.get("runWithJUnit4");
+
+    private static final String JUNIT_SELECT_PREFIX = "junit-select:";
 
     public static void main(String... args) throws Exception {
         main(null, args);
@@ -123,18 +138,33 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
         // https://junit.org/junit5/docs/current/user-guide/#launcher-api-execution
         Thread.currentThread().setContextClassLoader(mainClass.getClassLoader());
         try {
-            // if test.query is set, treat it as a method name to be executed
-            String testQuery = System.getProperty("test.query");
+            String testQueryStr = System.getProperty("test.query");
+            DiscoverySelector selector;
+            if (testQueryStr != null && !testQueryStr.isEmpty()) {
+                if (testQueryStr.startsWith(JUNIT_SELECT_PREFIX)) {
+                    // https://junit.org/junit5/docs/current/user-guide/#running-tests-discovery-selectors
+                    String selectorStr = testQueryStr.substring(JUNIT_SELECT_PREFIX.length());
+                    selector = DiscoverySelectors.parse(selectorStr)
+                            .orElseThrow(() -> new IllegalArgumentException("Selector can not be parsed: " + selectorStr));
+                } else {
+                    // legacy, assume method name
+                    selector = DiscoverySelectors.selectMethod(mainClass, testQueryStr);
+                }
+            } else {
+                selector = DiscoverySelectors.selectClass(mainClass);
+            }
             LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
-                .selectors(testQuery == null
-                        ? DiscoverySelectors.selectClass(mainClass)
-                        : DiscoverySelectors.selectMethod(mainClass, testQuery))
-                .build();
+                    .selectors(selector)
+                    .configurationParameter(TempDir.DEFAULT_CLEANUP_MODE_PROPERTY_NAME, CleanupMode.NEVER.name())
+                    .configurationParameter(TempDir.DEFAULT_FACTORY_PROPERTY_NAME, ScratchAsTemporaryDirectory.class.getName())
+                    .build();
 
             SummaryGeneratingListener summaryGeneratingListener = new SummaryGeneratingListener();
 
+            AgentVerbose verbose = AgentVerbose.ofStringRepresentation(System.getProperty("test.verbose"));
+
             LauncherConfig launcherConfig = LauncherConfig.builder()
-                .addTestExecutionListeners(new PrintingListener(System.err))
+                .addTestExecutionListeners(new PrintingListener(System.err, verbose))
                 .addTestExecutionListeners(summaryGeneratingListener)
                 .build();
 
@@ -187,18 +217,22 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
 
         final PrintWriter printer;
         final Lock lock;
+        final AgentVerbose verbose;
+        final Map<UniqueId, Long> startNanosByUniqueId = new ConcurrentHashMap<>();
 
-        PrintingListener(PrintStream stream) {
-            this(new PrintWriter(stream, true));
+        PrintingListener(PrintStream stream, AgentVerbose verbose) {
+            this(new PrintWriter(stream, true), verbose);
         }
 
-        PrintingListener(PrintWriter printer) {
+        PrintingListener(PrintWriter printer, AgentVerbose verbose) {
             this.printer = printer;
             this.lock = new ReentrantLock();
+            this.verbose = verbose;
         }
 
         @Override
         public void executionSkipped(TestIdentifier identifier, String reason) {
+            if (verbose.passMode == AgentVerbose.Mode.NONE) return;
             if (identifier.isTest()) {
                 String status = "SKIPPED";
                 String source = toSourceString(identifier);
@@ -215,6 +249,8 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
 
         @Override
         public void executionStarted(TestIdentifier identifier) {
+            startNanosByUniqueId.put(identifier.getUniqueIdObject(), System.nanoTime());
+            if (verbose.passMode == AgentVerbose.Mode.NONE) return;
             if (identifier.isTest()) {
                 String status = "STARTED";
                 String source = toSourceString(identifier);
@@ -231,9 +267,16 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
 
         @Override
         public void executionFinished(TestIdentifier identifier, TestExecutionResult result) {
+            TestExecutionResult.Status status = result.getStatus();
+            if (status == TestExecutionResult.Status.SUCCESSFUL) {
+                if (verbose.passMode == AgentVerbose.Mode.NONE) return;
+            }
+            Long startNanos = startNanosByUniqueId.remove(identifier.getUniqueIdObject());
+            Duration duration = startNanos == null
+                    ? Duration.ZERO
+                    : Duration.ofNanos(System.nanoTime() - startNanos);
             lock.lock();
             try {
-                TestExecutionResult.Status status = result.getStatus();
                 if (status == TestExecutionResult.Status.ABORTED) {
                     result.getThrowable().ifPresent(printer::println); // not the entire stack trace
                 }
@@ -243,7 +286,8 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
                 if (identifier.isTest()) {
                     String source = toSourceString(identifier);
                     String name = identifier.getDisplayName();
-                    printer.printf("%-10s %s '%s'%n", status, source, name);
+                    long millis = duration.toMillis();
+                    printer.printf("%-10s %s '%s' [%dms]%n", status, source, name, millis);
                 }
             }
             finally {
@@ -253,6 +297,7 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
 
         @Override
         public void reportingEntryPublished(TestIdentifier identifier, ReportEntry entry) {
+            if (verbose.passMode == AgentVerbose.Mode.NONE) return;
             lock.lock();
             try {
                 printer.println(identifier.getDisplayName() + " -> " + entry.getTimestamp());
@@ -272,6 +317,22 @@ public class JUnitRunner implements MainActionHelper.TestRunner {
                 return source.getClassName() + "::" + source.getMethodName();
             }
             return testSource.toString();
+        }
+    }
+
+    /**
+     * Custom temporary directory factory for JUnit Jupiter tests.
+     * <p>
+     * When jtreg executes a test, the current directory for the test is set
+     * to a scratch directory so that the test can easily write any temporary
+     * files. This implementation ensures JUnit's standard factory follows
+     * that rule.
+     */
+    static class ScratchAsTemporaryDirectory implements TempDirFactory {
+        @Override
+        public Path createTempDirectory(AnnotatedElementContext context, ExtensionContext extensionContext) throws Exception {
+            Path scratchDirectory = Paths.get("").toAbsolutePath();
+            return Files.createTempDirectory(scratchDirectory, "junit-");
         }
     }
 }

@@ -1,0 +1,18 @@
+Description: Set compile timeout for TimeoutDefaultSecondsWaiter on zero vm
+ The TimeoutDefaultSecondsWaiter test fails on zero vm because the
+ compilation times out. Add override for the compilation timeout.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7904157
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1128796
+Last-Update: 2026-02-23
+
+--- a/test/timeoutDefaultSeconds/TimeoutDefaultSecondsWaiter.java
++++ b/test/timeoutDefaultSeconds/TimeoutDefaultSecondsWaiter.java
+@@ -30,6 +30,7 @@
+ /*
+  * @test id=one
+  * @summary Test should be interrupted after 1 second, configured in main action
++ * @compile/timeout=1 TimeoutDefaultSecondsWaiter.java
+  * @run main/timeout=1 TimeoutDefaultSecondsWaiter
+  */
+ public class TimeoutDefaultSecondsWaiter {

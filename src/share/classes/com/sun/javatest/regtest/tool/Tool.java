@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,12 +46,15 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -77,8 +80,10 @@ import com.sun.javatest.ParameterFilter;
 import com.sun.javatest.ProductInfo;
 import com.sun.javatest.Status;
 import com.sun.javatest.StatusFilter;
+import com.sun.javatest.TestDescription;
 import com.sun.javatest.TestEnvironment;
 import com.sun.javatest.TestFilter;
+import com.sun.javatest.TestFinder;
 import com.sun.javatest.TestResult;
 import com.sun.javatest.TestResultTable;
 import com.sun.javatest.TestSuite;
@@ -459,6 +464,22 @@ public class Tool {
             }
         },
 
+        new Option(GNU, AGENT_POOL, null, "--agent-attempts") {
+            @Override
+            public void process(String opt, String arg) throws BadArgs {
+                int numTimes;
+                try {
+                    numTimes = Integer.parseInt(arg);
+                } catch (NumberFormatException e) {
+                    throw new BadArgs(i18n, "main.badAgentSelAttempt", arg);
+                }
+                if (numTimes < 1) {
+                    throw new BadArgs(i18n, "main.badAgentSelAttempt", numTimes);
+                }
+                numAgentSelectionAttempt = numTimes;
+            }
+        },
+
         new Option(STD, MAIN, "", "-conc", "-concurrency") {
             @Override
             public void process(String opt, String arg) {
@@ -621,6 +642,13 @@ public class Tool {
             @Override
             public void process(String opt, String arg) {
                 showGroupsFlag = true;
+            }
+        },
+
+        new Option(NONE, MAIN, null, "-i", "--verify-exclude") {
+            @Override
+            public void process(String opt, String arg) {
+                verifyExcludeListsFlag = true;
             }
         },
 
@@ -1118,6 +1146,36 @@ public class Tool {
             baseDir = baseDirArg.toAbsolutePath();
         }
 
+        // support for -show:stream file.jtr
+        var jtrFiles = testSpecArgs.stream()
+                .filter(s -> s.file.getFileName().toString().endsWith(".jtr"))
+                .collect(Collectors.toList());
+        if (!jtrFiles.isEmpty()) {
+            if (jtrFiles.size() < testSpecArgs.size() || !testGroupSpecArgs.isEmpty()) {
+                throw new Fault(i18n, "main.invalidCombinationTestArgs");
+            } else if (jtrFiles.size() > 1) {
+                throw new Fault(i18n, "main.moreThanOneTestSpecified");
+            } else if (showStream == null) {
+                throw new Fault(i18n, "main.noStreamSpecified");
+            } else {
+                var jtr = jtrFiles.get(0);
+                if (jtr.id != null) {
+                    throw new Fault(i18n, "main.cannotSpecifyID", jtr);
+                }
+                if (jtr.query != null) {
+                    throw new Fault(i18n, "main.cannotSpecifyQuery", jtr);
+                }
+                Path p =jtr.file;
+                try {
+                    var tr = new TestResult(jtr.file.toFile());
+                    showStream(tr);
+                } catch (TestResult.Fault e) {
+                    throw new Fault(i18n, "main.cannotReloadTestResult", p);
+                }
+            }
+            return EXIT_OK;
+        }
+
         final TestManager testManager = new TestManager(out, baseDir, Tool.this::error);
         testManager.addTestSpecs(testSpecArgs);
         testManager.addGroupSpecs(testGroupSpecArgs);
@@ -1237,6 +1295,10 @@ public class Tool {
             return EXIT_OK;
         }
 
+        if (verifyExcludeListsFlag) {
+            verifyExcludeLists(testManager, baseDir);
+        }
+
         if (listTestsFlag) {
             listTests(testManager);
             return EXIT_OK;
@@ -1311,6 +1373,7 @@ public class Tool {
                     }
                     p.setMaxPoolSize(maxPoolSize);
                     p.setIdleTimeout(poolIdleTimeout);
+                    p.setNumAgentSelectionAttempts(numAgentSelectionAttempt);
                     break;
                 case OTHERVM:
                     break;
@@ -1356,6 +1419,56 @@ public class Tool {
                 : testStats.counts[Status.PASSED] == 0 && !foundEmptyGroup ? EXIT_NO_TESTS
                 : errors != 0 ? EXIT_FAULT
                 : EXIT_OK);
+    }
+
+    void verifyExcludeLists(TestManager testManager, Path baseDir) throws BadArgs, Fault, Harness.Fault, InterruptedException  {
+        // dummy manager with an "all" spec for each suite
+        TestManager dummyTestManager = new TestManager(new PrintWriter(System.out, true), baseDir, Tool.this::error);
+        dummyTestManager.setWorkDirectory(testManager.getWorkDirectory()); // Without this, nullpointer happens in createparameters
+        dummyTestManager.addTestSpecs(testManager.getTestSuites().stream()
+            .map(ts -> TestManager.TestSpec.of(ts.getRootDir().toString()))
+            .collect(Collectors.toList()));
+
+        List<String> validTestNames = new ArrayList<String>();
+        for (RegressionTestSuite ts: dummyTestManager.getTestSuites()) {
+            if (verbose != null)  {
+                out.println(i18n.getString("main.tests.suite", ts.getRootDir()));
+                if (verbose == Verbose.ALL)  {
+                    out.println(i18n.getString("main.tests.allrecognizedtests"));
+                }
+            }
+
+            RegressionParameters params = createParameters(dummyTestManager, ts);
+            for (Iterator<TestResult> iter = getEagerResultsIterator(params); iter.hasNext(); ) {
+                TestResult tr = iter.next();
+                validTestNames.add(tr.getTestName());
+                if (verbose == Verbose.ALL)  {
+                    out.println(tr.getTestName());
+                }
+            }
+        }
+
+        List<File> excludeOrMatchFiles = new ArrayList<File>();
+        for (RegressionTestSuite ts: testManager.getTestSuites()) {
+            RegressionParameters params = createParameters(testManager, ts);
+            for (File f : params.getExcludeLists()) {
+                excludeOrMatchFiles.add(f);
+            }
+            for (Path p : params.getMatchLists()) {
+                excludeOrMatchFiles.add(p.toFile());
+            }
+        }
+
+        boolean hadErrors = false;
+        for(File plf : excludeOrMatchFiles) {
+            ExcludeFileVerifier efv = new ExcludeFileVerifier(out);
+            efv.verify(plf, validTestNames);
+            hadErrors |= efv.getHadErrors();
+        }
+
+        if (hadErrors) {
+            error("Cannot run because an exclude list had errors, printed above. Either resolve them or remove the exclude list.");
+        }
     }
 
     JDK_Version checkJDK(JDK jdk) throws Fault {
@@ -1754,6 +1867,8 @@ public class Tool {
 
             rp.setUseWindowsSubsystemForLinux(useWindowsSubsystemForLinux);
 
+            rp.setVerbose(verbose);
+
             rp.initExprContext(); // will invoke/init jdk.getProperties(params)
 
             return rp;
@@ -1851,38 +1966,8 @@ public class Tool {
                 if (tr == null) {
                     out.println("No test specified");
                     ok = false;
-                } else if (tr.getStatus().isNotRun()) {
-                    out.println("Test has not been run");
-                    ok = false;
                 } else {
-                    try {
-                        // work around bug CODETOOLS-7900214 -- force the sections to be reloaded
-                        tr.getProperty("sections");
-                        String section, stream;
-                        int sep = showStream.indexOf("/");
-                        if (sep == -1) {
-                            section = null;
-                            stream = showStream;
-                        } else {
-                            section = showStream.substring(0, sep);
-                            stream = showStream.substring(sep + 1);
-                        }
-                        for (int i = 0; i < tr.getSectionCount(); i++) {
-                            TestResult.Section s = tr.getSection(i);
-                            if (section == null || section.equals(s.getTitle())) {
-                                String text = s.getOutput(stream);
-                                // need to handle internal newlines properly
-                                if (text != null) {
-                                    out.println("### Section " + s.getTitle());
-                                    out.println(text);
-                                }
-                            }
-                        }
-                        ok = true;
-                    } catch (TestResult.Fault f) {
-                        out.println("Cannot reload test results: " + f.getMessage());
-                        ok = false;
-                    }
+                    ok = showStream(tr);
                 }
                 quiet = true;
             } else {
@@ -2010,6 +2095,64 @@ public class Tool {
         }
     }
 
+    private boolean showStream(TestResult tr) {
+        if (tr.getStatus().isNotRun()) {
+            out.println("Test has not been run");
+            return false;
+        }
+
+        try {
+            // work around bug CODETOOLS-7900214 -- force the sections to be reloaded
+            tr.getProperty("sections");
+
+            boolean allOK = true;
+
+            var allSections = new HashMap<String, Set<String>>();
+            var allStreams = new HashSet<String>();
+            for (int i = 0; i < tr.getSectionCount(); i++) {
+                TestResult.Section s = tr.getSection(i);
+                var names = Set.of(s.getOutputNames());
+                allSections.put(s.getTitle(), names);
+                allStreams.addAll(names);
+            }
+            String section, outputName;
+            int sep = showStream.indexOf("/");
+            if (sep == -1) {
+                section = null;
+                outputName = showStream;
+                if (!allStreams.contains(outputName)) {
+                    out.println("# no such output stream: " + outputName);
+                    allOK = false;
+                }
+            } else {
+                section = showStream.substring(0, sep);
+                outputName = showStream.substring(sep + 1);
+                var outputNames = allSections.get(section);
+                if (outputNames == null) {
+                    out.println("# section not found: " + section);
+                    allOK = false;
+                } else if (!outputNames.contains(outputName)) {
+                    out.println("# output stream not found: " + showStream);
+                    allOK = false;
+                }
+            }
+            for (int i = 0; i < tr.getSectionCount(); i++) {
+                TestResult.Section s = tr.getSection(i);
+                if (section == null || section.equals(s.getTitle())) {
+                    String text = s.getOutput(outputName);
+                    if (text != null) {
+                        out.println("### Section " + s.getTitle());
+                        text.lines().forEach(out::println);
+                    }
+                }
+            }
+            return allOK;
+        } catch (TestResult.Fault f) {
+            out.println("Cannot reload test results: " + f.getMessage());
+            return false;
+        }
+    }
+
     private void initModuleHelper(WorkDirectory wd) {
         File patchDir = wd.getFile("patches");
         File javaBaseDir = new File(patchDir, "java.base");
@@ -2063,6 +2206,15 @@ public class Tool {
             return Collections.emptyIterator();
         else
             return trt.getIterator(tests, filters);
+    }
+
+    // An iterator that applies no filters.
+    // The intention is to help discover all "existing" tests.
+    private Iterator<TestResult> getEagerResultsIterator(InterviewParameters params) {
+        TestResultTable trt = params.getWorkDirectory().getTestResultTable();
+        trt.waitUntilReady();
+        TestFilter[] filters = null;
+        return trt.getIterator(filters);
     }
 
     private void showTool(final InterviewParameters params) throws BadArgs {
@@ -2217,7 +2369,7 @@ public class Tool {
     }
 
     /**
-     * Returns whether or not Cygwin may be available, by examining
+     * Returns whether Cygwin may be available, by examining
      * to see if "LETTER:STUFF\cygwin" is mentioned anywhere in the PATH.
      */
     private boolean isCygwinDetected() {
@@ -2313,6 +2465,8 @@ public class Tool {
     private String testThreadFactoryPathArg;
     private int maxPoolSize = -1;
     private Duration poolIdleTimeout = Duration.ofSeconds(30);
+    // number of attempts to get an agent for an action
+    private int numAgentSelectionAttempt = DEFAULT_NUM_AGENT_SEL_ATTEMPT;
     private List<String> testCompilerOpts = new ArrayList<>();
     private List<String> testJavaOpts = new ArrayList<>();
     private List<String> testVMOpts = new ArrayList<>();
@@ -2320,6 +2474,7 @@ public class Tool {
     private boolean checkFlag;
     private boolean listTestsFlag;
     private boolean showGroupsFlag;
+    private boolean verifyExcludeListsFlag;
     private List<String> envVarArgs = new ArrayList<>();
     private IgnoreKind ignoreKind;
     private List<Path> classPathAppendArg = new ArrayList<>();
@@ -2360,6 +2515,10 @@ public class Tool {
             "TMP", "TEMP", "TZ",
             "windir"
     };
+
+    // default value for agent selection attempts. we default to 1, which implies
+    // by default we don't re-attempt on a failure
+    private static final int DEFAULT_NUM_AGENT_SEL_ATTEMPT = 1;
 
     private static final I18NResourceBundle i18n = I18NResourceBundle.getBundleForClass(Tool.class);
 }

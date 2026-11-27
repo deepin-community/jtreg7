@@ -1,3 +1,156 @@
+jtreg7 (7.5.2+1+ds2-3~deb13u1) trixie-security; urgency=medium
+
+  * Rebuild for trixie, needed by the latest OpenJDK 21 security release
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Sun, 26 Apr 2026 13:07:12 +0200
+
+jtreg7 (7.5.2+1+ds2-3) unstable; urgency=medium
+
+  * d/p/codetools-7904157-proposed.patch: override compile
+    timeout to resolve the test failure due to the compilation
+    timing out with the default timeout (Closes: #1128796).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 23 Feb 2026 17:42:54 +1300
+
+jtreg7 (7.5.2+1+ds2-2) unstable; urgency=medium
+
+  * d/p/codetools-7904152.patch: skip security policy tests
+    with Java 25 (CODETOOLS-7904152).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 16 Feb 2026 10:53:39 +1300
+
+jtreg7 (7.5.2+1+ds2-1) unstable; urgency=medium
+
+  * d/{control, copyright,p/testng-build-with-gradle.patch}: drop
+    snakeyaml dependency (Closes: #1117950).
+  * Add patches to resolve test ftbfs (Closes: #1115694):
+    - d/p/codetools-7904101.patch: capture all stdout/stderr output
+      from the agent vm to the log file.
+    - d/p/codetools-7904104-proposed.patch: do not interrupt main
+      thread if the agent process is killed.
+    - d/p/codetools-7904105-proposed.patch: synchronize test result
+      updates.
+    - d/p/codetools-7904106-proposed.patch: use different work
+      directories for TestNativePath.
+    - d/p/codetools-7904107-proposed.patch: add a separate target to
+      filter log files.
+  * d/flush_stream.patch: drop patch, it is replaced by
+    d/p/codetools-7904101.patch.
+  * d/watch: update repack version.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Thu, 23 Oct 2025 08:54:01 +1300
+
+jtreg7 (7.5.2+1+ds1-2) unstable; urgency=medium
+
+  * d/copyright: revert FSF address change.
+  * d/s/lintian-overrides, d/jtreg7.lintian-overrides: add override for
+    the old FSF address.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Thu, 21 Aug 2025 08:17:51 +1200
+
+jtreg7 (7.5.2+1+ds1-1) unstable; urgency=medium
+
+  [ Vladimir Petko ]
+  * New upstream release 7.5.2+1.
+    - d/watch: set major jtreg version to 7, update junit5 download
+      url.
+    - refresh patches.
+    - d/picocli/maven.rules: replace groovy version with 'debian'.
+    - d/p/preview-test.patch: enable --enable-preview tests for
+      Java > 11.
+  * d/control: update Standards Version to 4.7.2 (no changes).
+  * Add lintian overrides.
+  * d/copyright: update FSF address.
+
+  [ tony mancill ]
+  * Add flush-alarm.patch
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Mon, 04 Aug 2025 10:39:03 +1200
+
+jtreg7 (7.5.1+1+ds1-3) unstable; urgency=medium
+
+  * d/t/self-test: pass JAVA_SPECIFICATION_VERSION to make to fix
+    autopkgtest regression (Closes: #1102171).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Tue, 08 Apr 2025 08:14:26 +1200
+
+jtreg7 (7.5.1+1+ds1-2) unstable; urgency=medium
+
+  * Fix ftbfs in backports (Closes: #1102171):
+    - d/p/jline3-01-ignore-warnings.patch: ignore builtins warnings.
+    - d/rules: use upstream expression from make/build.sh to set
+      JAVA_SPECIFICATION_VERSION. Add JAVA_SPECIFICATION_VERSION
+      make parameter.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Sun, 06 Apr 2025 12:28:18 +1200
+
+jtreg7 (7.5.1+1+ds1-1) unstable; urgency=medium
+
+  * New upstream release 7.5.1 build 1.
+    - d/watch: update junit5 to 5.11.4.
+    - d/watch: update opentest4j-reporting to 1.0.1-M2.
+  * d/p/{codetools-7903760, java21-codetools-7903645}.patch: drop
+    patches applied upstream.
+  * d/junit5: add generated JRE.java source.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Thu, 06 Feb 2025 10:11:14 +1300
+
+jtreg7 (7.4+1+ds1-1) unstable; urgency=medium
+
+  * New upstream release 7.4 build 1.
+  * d/p/opentest4j-reporting-01-gradle-compatibility.patch: set
+    source/target compatibility 8 to support openjdk-11 jtreg tests
+    (Closes: #1071976).
+  * d/p/watch: update watch for the new upstream release.
+  * d/p/codetools-7903760.patch: apply upstream patch to revert
+    jtdiff removal.
+  * d/p/reproducible-build.patch: refresh patch.
+  * d/p/java21-this-escape.patch: drop patch applied upstream.
+  * d/rules: create build/test/ directory.
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Wed, 03 Jul 2024 14:34:39 +1200
+
+jtreg7 (7.3.1+1+ds1-2) unstable; urgency=medium
+
+  [ Pushkar Kulkarni ]
+  * d/t/self-test: Update jar paths for autopkgtests
+    (Closes: #1070740).
+
+ -- Vladimir Petko <vladimir.petko@canonical.com>  Thu, 09 May 2024 08:52:53 +1200
+
+jtreg7 (7.3.1+1+ds1-1) unstable; urgency=medium
+
+  * Team upload
+
+  [ Vladimir Petko ]
+  * Vendor jtreg7 dependencies: apiguardian, hawt-jni, jansi1, jline3,
+    junit4, junit5, libhamcrest-java, opentest4j, opentest4j-reporting,
+    picocli, testng7, univocity-parsers to allow backports
+    (Closes: #1068629).
+    - d/watch: build MUT original tarball.
+    - d/component-scripts: add scripts to build the bundled components.
+    - d/copyright: include bundled components copyrights.
+  * d/control: downgrade debhelper compatibility level to 11 for
+    backports.
+  * d/rules: fix man page generation by using the version option.
+  * Repack original tarball to drop excluded files.
+
+ -- tony mancill <tmancill@debian.org>  Mon, 06 May 2024 19:55:00 -0700
+
+jtreg7 (7.3.1+1-2) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Vladimir Petko ]
+  * d/p/java21-*: add Java 21 compatibility patches: fix this-escape
+    warning, disable tests failing due to SecurityManager changes
+    (Closes: #1057512).
+
+  [ Emmanuel Bourg ]
+  * Added the Vcs-* fields
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 09 Apr 2024 14:39:35 +0200
+
 jtreg7 (7.3.1+1-1) unstable; urgency=medium
 
   * New upstream release 7.3.1 build 1.

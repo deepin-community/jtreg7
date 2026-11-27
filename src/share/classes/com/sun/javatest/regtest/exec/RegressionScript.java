@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,11 @@
 package com.sun.javatest.regtest.exec;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
 import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -44,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -74,7 +74,9 @@ import com.sun.javatest.regtest.config.ParseException;
 import com.sun.javatest.regtest.config.RegressionEnvironment;
 import com.sun.javatest.regtest.config.RegressionParameters;
 import com.sun.javatest.regtest.config.RegressionTestSuite;
+import com.sun.javatest.regtest.config.TestProperties;
 import com.sun.javatest.regtest.report.SummaryReporter;
+import com.sun.javatest.regtest.report.Verbose;
 import com.sun.javatest.regtest.tool.Version;
 import com.sun.javatest.regtest.util.FileUtils;
 import com.sun.javatest.regtest.util.StringUtils;
@@ -127,14 +129,7 @@ public class RegressionScript extends Script {
         // defaults
 
         testResult = getTestResult();
-
-        String hostname;
-        try {
-            hostname = InetAddress.getLocalHost().getCanonicalHostName();
-        } catch (UnknownHostException e) {
-            hostname = "127.0.0.1";
-        }
-        testResult.putProperty("hostname", hostname);
+        testResult.putProperty("hostname", regEnv.getHostName());
         String[] props = { "user.name" };
         for (String p: props) {
             testResult.putProperty(p, System.getProperty(p));
@@ -353,7 +348,7 @@ public class RegressionScript extends Script {
     public static Set<File> getSourceFiles(RegressionParameters p, TestDescription td) {
         Consumer<String> logger = System.err::println;
         try {
-            RegressionScript tmp = new RegressionScript();
+            RegressionScript tmp = new RegressionScript(p.getTestSuite().getTestProperties());
             // init the script enough to parse the actions
             tmp.params = p;
             tmp.td= td;
@@ -450,6 +445,11 @@ public class RegressionScript extends Script {
         return ep != null && ep.equals("true");
     }
 
+    boolean disablePreview() {
+        String ep = td.getParameter("enablePreview");
+        return ep != null && ep.equals("false");
+    }
+
     private List<String> processArgs(List<String> args, Expr.Context c, Map<String,String> testProps)
             throws TestSuite.Fault, Expr.Fault, ParseException {
         if (!testSuite.getAllowSmartActionArgs(td))
@@ -469,11 +469,9 @@ public class RegressionScript extends Script {
         return newArgs;
     }
 
-    private static final Pattern namePattern = Pattern.compile("\\$\\{([A-Za-z0-9._]+)}");
-
     private static String evalNames(String arg, Expr.Context c, Map<String,String> testProps)
             throws Expr.Fault, ParseException {
-        Matcher m = namePattern.matcher(arg);
+        Matcher m = SMART_ACTION_NAME_PATTERN.matcher(arg);
         StringBuilder sb = null;
         // Note that '\' may appear in the replacement value for paths on Windows,
         // and so, in the following loop, avoid using Matcher::appendReplacement,
@@ -529,10 +527,15 @@ public class RegressionScript extends Script {
      * @return     the timeout, in seconds
      */
     protected int getActionTimeout(int time) {
-        final int DEFAULT_ACTION_TIMEOUT = 120; // seconds
-        return isTimeoutsEnabled()
-                ? (int) ((time < 0 ? DEFAULT_ACTION_TIMEOUT : time) * getTimeoutFactor())
-                : 0;
+        if (!isTimeoutsEnabled() || time == 0) {
+            return 0;
+        }
+        int seconds = time > 0 ? time : getDefaultTimeoutSeconds();
+        return (int) (seconds * getTimeoutFactor());
+    }
+
+    private int getDefaultTimeoutSeconds() {
+        return (int) properties.getDefaultTimeout(getTestDescription().getFile()).toSeconds();
     }
 
     protected float getTimeoutFactor() {
@@ -787,7 +790,7 @@ public class RegressionScript extends Script {
         SearchPath sp = new SearchPath();
 
         // Test:
-        if (libLocn == null || libLocn.name == null) {
+        if (libLocn == null || libLocn.isTest()) {
             if (multiModule) {
                 msp.append(locations.absTestSrcDir());
             } else {
@@ -1057,15 +1060,8 @@ public class RegressionScript extends Script {
         return SummaryReporter.forJUnit(workDir);
     }
 
-    Lock getLockIfRequired() throws TestRunException {
-        try {
-            if (!testSuite.needsExclusiveAccess(td))
-                return null;
-        } catch (TestSuite.Fault e) {
-            throw new TestRunException("Can't determine if lock required", e);
-        }
-
-        return Lock.get(params);
+    Lock getLockIfRequired() {
+        return testSuite.needsExclusiveAccess(td) ? Lock.get(params) : null;
     }
 
     int getNextSerial() {
@@ -1139,13 +1135,19 @@ public class RegressionScript extends Script {
         if (testQuery != null) {
             p.put("test.query", testQuery);
         }
+        Verbose verbose = params.getVerbose();
+        if (verbose != null) {
+            p.put("test.verbose", verbose.toString());
+        }
         p.put("test.file", locations.absTestFile().toString());
+        computeMainClassNameFromTestFile().ifPresent(name -> p.put("test.main.class", name));
         p.put("test.src", locations.absTestSrcDir().toString());
         p.put("test.src.path", toString(locations.absTestSrcPath()));
         p.put("test.classes", locations.absTestClsDir().toString());
         p.put("test.class.path", toString(locations.absTestClsPath()));
         if (getExecMode() == ExecMode.AGENTVM) {
-            // The following will be added to javac.class.path on the test VM
+            // The following will be added to java.class.path on the test VM
+            // and is not for general use
             SearchPath path = new SearchPath()
                     .append(locations.absTestClsDir())
                     .append(locations.absTestSrcDir())
@@ -1168,21 +1170,39 @@ public class RegressionScript extends Script {
         if (enablePreview()) {
             p.put("test.enable.preview", "true");
         }
+        if (disablePreview()) {
+            p.put("test.enable.preview", "false");
+        }
         p.put("test.root", getTestRootDir().getPath());
         return Collections.unmodifiableMap(p);
     }
-    // where
+
     private String toString(List<Path> files) {
         return files.stream()
                 .map(Path::toString)
                 .collect(Collectors.joining(File.pathSeparator));
     }
-//    // where
-//    private String toString(List<File> files) {
-//        return files.stream()
-//                .map(File::getPath)
-//                .collect(Collectors.joining(File.pathSeparator));
-//    }
+
+    private Optional<String> computeMainClassNameFromTestFile() {
+        Path file = locations.absTestFile();
+        // Take file name as basis for class name.
+        String fileName = file.getFileName().toString();
+        int fileNameLength = fileName.length(); // including ".java".length() = 5
+        if (fileNameLength <= 5 || !fileName.endsWith(".java")) {
+            return Optional.empty();
+        }
+        String className = fileName.substring(0, fileNameLength - 5);
+        // Scan .java file for "package NAME;" without taking comments into account.
+        try {
+            // Assume non-large files in UTF-8 encoding.
+            String charContent = Files.readString(file);
+            Matcher packageMatcher = PACKAGE_NAME_PATTERN.matcher(charContent);
+            String packageName = packageMatcher.find() ? packageMatcher.group(1) + "." : "";
+            return Optional.of(packageName + className);
+        } catch (IOException ignored) {
+            return Optional.empty();
+        }
+    }
 
     File getTestRootDir() {
         return params.getTestSuite().getRootDir();
@@ -1322,6 +1342,10 @@ public class RegressionScript extends Script {
         ILLEGAL_ACCESS_INIT   = "Illegal access to init method: ",
         BAD_ACTION            = "Bad action for script: ";
 
+    private static final Pattern
+        SMART_ACTION_NAME_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9._]+)}"),
+        PACKAGE_NAME_PATTERN = Pattern.compile("package\\s+([\\w.]+);");
+
     //----------member variables-----------------------------------------------
 
     private final Map<String, Class<?>> actionTable = new HashMap<>();
@@ -1342,5 +1366,10 @@ public class RegressionScript extends Script {
     private Modules modules;
     private ScratchDirectory scratchDirectory;
     Locations locations;
+    private final TestProperties properties;
+
+    public RegressionScript(TestProperties properties) {
+        this.properties = properties;
+    }
 
 }

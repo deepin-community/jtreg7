@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -208,8 +208,17 @@ public class CompileAction extends Action {
             // note: in the following code, some args are overwritten in place
             String currArg = args.get(i);
 
+            boolean isSourceFile = false;
+
             if (currArg.endsWith(".java")) {
                 foundJavaFile = true;
+                isSourceFile = true;
+            } else if (currArg.endsWith(".jasm") || currArg.endsWith(".jcod")) {
+                foundAsmFile = true;
+                isSourceFile = true;
+            }
+
+            if (isSourceFile) {
                 File sourceFile = new File(currArg.replace('/', File.separatorChar));
                 if (!sourceFile.isAbsolute()) {
                     // User must have used @compile, so file must be
@@ -217,22 +226,6 @@ public class CompileAction extends Action {
                     if (multiModule)
                         addModule(currArg);
                     Path absSourceFile = locations.absTestSrcFile(module, sourceFile);
-                    if (!Files.exists(absSourceFile))
-                        throw new ParseException(CANT_FIND_SRC + currArg);
-                    args.set(i, absSourceFile.toString());
-                }
-            } else if (currArg.endsWith(".jasm") || currArg.endsWith("jcod")) {
-                if (module != null) {
-                    throw new ParseException(COMPILE_OPT_DISALLOW);
-                }
-                foundAsmFile = true;
-                File sourceFile = new File(currArg.replace('/', File.separatorChar));
-                if (!sourceFile.isAbsolute()) {
-                    // User must have used @compile, so file must be
-                    // in the same directory as the defining file.
-                    if (multiModule)
-                        addModule(currArg);
-                    Path absSourceFile = locations.absTestSrcFile(null, sourceFile);
                     if (!Files.exists(absSourceFile))
                         throw new ParseException(CANT_FIND_SRC + currArg);
                     args.set(i, absSourceFile.toString());
@@ -327,17 +320,15 @@ public class CompileAction extends Action {
         List<String> jcodArgs = new ArrayList<>();
         boolean runJavac = process;
 
-        int insertPos = -1;
+        String sourceOrReleaseVersion = null;
         boolean seenSourceOrRelease = false;
         boolean seenEnablePreview = false;
 
-        for (String currArg : args) {
+        for (int i = 0; i < args.size(); i++) {
+            String currArg = args.get(i);
             if (currArg.endsWith(".java")) {
                 if (!(new File(currArg)).exists())
                     throw new TestRunException(CANT_FIND_SRC + currArg);
-                if (insertPos == -1) {
-                    insertPos = javacArgs.size();
-                }
                 javacArgs.add(currArg);
                 runJavac = true;
             } else if (currArg.endsWith(".jasm")) {
@@ -349,25 +340,32 @@ public class CompileAction extends Action {
                 switch (eq == -1 ? currArg : currArg.substring(0, eq)) {
                     case "--enable-preview":
                         seenEnablePreview = true;
-                        break;
+                        break; // switch
                     case "-source":
                     case "--source":
                     case "--release":
-                        if (insertPos == -1) {
-                            insertPos = javacArgs.size();
+                        seenSourceOrRelease = true;
+                        if (eq != -1) {
+                            sourceOrReleaseVersion = currArg.substring(eq + 1).trim();
+                        } else {
+                            sourceOrReleaseVersion = args.size() > i + 1 ? args.get(i + 1) : null;
                         }
-                        seenSourceOrRelease= true;
-                        break;
+                        break; // switch
                 }
                 javacArgs.add(currArg);
             }
         }
 
         if (runJavac && script.enablePreview() && !seenEnablePreview) {
-            javacArgs.add(insertPos, "--enable-preview");
+            String version = script.getTestJDKVersion().name();
+            // always prepend in order to not mess with variadic arguments
             if (!seenSourceOrRelease) {
-                int v = script.getTestJDKVersion().major;
-                javacArgs.add(insertPos + 1, "--source=" + v);
+                javacArgs.add(0, version);
+                javacArgs.add(0, "-source");
+            }
+            // 7903809: prevent invalid source release errors
+            if (!seenSourceOrRelease || version.equals(sourceOrReleaseVersion)) {
+                javacArgs.add(0, "--enable-preview");
             }
         }
 
@@ -640,6 +638,7 @@ public class CompileAction extends Action {
                 return new Status(aStatus.getType(), aStatus.getReason());
             }
         };
+        cmd.setMessageWriter(section.getMessageWriter());
 
         TimeoutHandler timeoutHandler =
             script.getTimeoutHandlerProvider().createHandler(this.getClass(), script, section);
@@ -699,6 +698,8 @@ public class CompileAction extends Action {
                     : script.getTestVMOptions();
             agent = script.getAgent(jdk, agentClasspath, vmOpts, null, null);
             section.getMessageWriter().println("Agent id: " + agent.getId());
+            final long pid = agent.getAgentServerPid();
+            section.getMessageWriter().println("Process id: " + ((pid == -1) ? "unknown" : pid));
             new ModuleConfig("Boot Layer (javac runtime environment)")
                     .setFromOpts(agent.vmOpts)
                     .write(configWriter);
@@ -721,6 +722,10 @@ public class CompileAction extends Action {
                     timeout,
                     timeoutHandler,
                     section);
+        } catch (Agent.ActionTimeout te) {
+            final String msg = "\"" + getName() + "\" action timed out with a timeout of "
+                    + timeout + " seconds on agent " + agent.id;
+            status = error(msg);
         } catch (Agent.Fault e) {
             if (e.getCause() instanceof IOException)
                 status = error(String.format(AGENTVM_IO_EXCEPTION, e.getCause()));

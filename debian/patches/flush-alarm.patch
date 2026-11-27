@@ -1,0 +1,15 @@
+Description: Flush alarm output
+ Addresses sporadic FTBFS during builds on some systems related
+ to 'missing "Timeout signalled" action timeout message' errors.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Forwarded: not-needed
+--- a/src/share/classes/com/sun/javatest/regtest/agent/Alarm.java
++++ b/src/share/classes/com/sun/javatest/regtest/agent/Alarm.java
+@@ -147,6 +147,7 @@
+             } else if (count % 100 == 0) {
+                 msgOut.println(String.format("Timeout refired %d times", count));
+             }
++            msgOut.flush();
+         }
+         count++;
+         fired = true;

@@ -1,4 +1,4 @@
-build/images/jtreg/lib/jtreg.jar                /usr/share/java
+build/images/jtreg/lib/*.jar                    /usr/share/jtreg/lib
 build/images/jtreg/doc/jtreg/tag-spec.html      /usr/share/doc/jtreg
 build/images/jtreg/doc/jtreg/usage.txt          /usr/share/doc/jtreg
 build/images/jtreg/bin/jtdiff                   /usr/share/jtreg/bin

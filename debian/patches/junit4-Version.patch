@@ -1,0 +1,16 @@
+From: Markus Koschany <apo@debian.org>
+Date: Sun, 1 Nov 2020 19:20:34 +0100
+Subject: Version
+
+Forwarded: no
+--- a/junit4/src/main/java/junit/runner/Version.java
++++ b/junit4/src/main/java/junit/runner/Version.java
+@@ -9,7 +9,7 @@
+ 	}
+ 
+ 	public static String id() {
+-		return "4.13.2-SNAPSHOT";
++		return "4.13.2";
+ 	}
+ 	
+ 	public static void main(String[] args) {

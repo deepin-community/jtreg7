@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	dh_auto_configure $@
+	rsync -Lav ../debian/built-components/ debian/ || true
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -Rf debian/libjansi1-java/usr/share/maven-repo/org/fusesource/jansi/jansi/1.18
+	rm -Rf debian/libjansi1-java/usr/share/maven-repo/org/fusesource/jansi/jansi-project/1.18
+	rm -Rf debian/libjansi1-java/usr/share/java/jansi1-1.18.jar

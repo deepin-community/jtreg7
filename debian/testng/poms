@@ -1,0 +1,1 @@
+build/debian/testng.pom --artifact=build/libs/testng-*.jar --java-lib --relocate=org.testng:testng:7.x

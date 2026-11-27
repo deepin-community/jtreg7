@@ -1,0 +1,24 @@
+Description: Disable tests failing due to SecurityManager changes in agentvm
+ In agentvm mode, the agent JVM does not set security manager for Java 18 + and
+ does not intercept System.exit() calls.
+ This causes agentvm mode behave differently from othervm - tests failing with
+ 'Unexpected test exit' produce an 'Unexpected EOF' error or a SocketException
+ error.
+ Disable affected tests pending bug fix as it requires discussion with upstream
+ on the best way to fix it.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7903646
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1057512
+Forwarded: not-needed
+Last-Update: 2024-01-26
+--- a/test/basic/Basic.gmk
++++ b/test/basic/Basic.gmk
+@@ -108,6 +108,6 @@
+ 	echo $@ passed at `date` > $@
+ 
+ INITIAL_TESTS += \
+-	$(BUILDTESTDIR)/Basic.othervm.ok \
+-	$(BUILDTESTDIR)/Basic.agentvm.ok
++	$(BUILDTESTDIR)/Basic.othervm.ok
++#	$(BUILDTESTDIR)/Basic.agentvm.ok
+ 

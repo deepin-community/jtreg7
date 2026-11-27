@@ -1,0 +1,42 @@
+Description: intermittent test failure in CleanupDirTests.agentvm.conc
+ jtharness does not synchronize calls to Observer. Synchronized keyword
+ needs to be added when processing shared state.
+Author: Vladimir Petko <vladimir.petko@canonical.com>
+Origin: upstream, https://github.com/openjdk/jtreg/pull/297
+Bug: https://bugs.openjdk.org/browse/CODETOOLS-7904105
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1115694
+Last-Update: 2025-10-28
+
+--- a/src/share/classes/com/sun/javatest/regtest/report/TestStats.java
++++ b/src/share/classes/com/sun/javatest/regtest/report/TestStats.java
+@@ -99,7 +99,7 @@
+             }
+ 
+             @Override
+-            public void finishedTest(TestResult tr) {
++            public synchronized void finishedTest(TestResult tr) {
+                 add(tr);
+             }
+ 
+--- a/src/share/classes/com/sun/javatest/regtest/report/XMLWriter.java
++++ b/src/share/classes/com/sun/javatest/regtest/report/XMLWriter.java
+@@ -365,7 +365,7 @@
+         }
+ 
+         @Override
+-        public void finishedTest(TestResult tr) {
++        public synchronized void finishedTest(TestResult tr) {
+             try {
+                 super.finishedTest(tr);
+                 new XMLWriter(tr, mustVerify, harnessOut, harnessErr).toXML();
+--- a/src/share/classes/com/sun/javatest/regtest/tool/Tool.java
++++ b/src/share/classes/com/sun/javatest/regtest/tool/Tool.java
+@@ -1946,7 +1946,7 @@
+ 
+                 h.addObserver(new BasicObserver() {
+                     @Override
+-                    public void error(String msg) {
++                    public synchronized void error(String msg) {
+                         Tool.this.error(msg);
+                     }
+                 });

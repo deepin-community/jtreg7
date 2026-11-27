@@ -8,9 +8,9 @@ Last-Update: 2023-01-23
 --- a/test/basic/Basic.gmk
 +++ b/test/basic/Basic.gmk
 @@ -55,7 +55,13 @@
-
+ 
  #----------------------------------------------------------------------
-
+ 
 +ifdef HEADLESS
 +ENVVARS="DISPLAY="
 +TEST_ENV="-Djava.awt.headless=true"
@@ -18,7 +18,7 @@ Last-Update: 2023-01-23
  ENVVARS="DISPLAY=$${DISPLAY:-`uname -n`:0.0}"
 +TEST_ENV="-Djava.awt.headless=false"
 +endif
-
+ 
  ifeq ($(OS_NAME), windows)
    BASIC_TESTS := $(shell cygpath -m $(abspath $(TESTDIR)/share/basic) )
 @@ -89,6 +95,7 @@
